@@ -1,4 +1,5 @@
 from typing import Literal
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
@@ -42,3 +43,41 @@ class GenerateTestDesignResponse(BaseModel):
     viewpoints: list[Viewpoint]
     test_cases: list[TestCase]
     markdown: str
+
+
+class TestDesignGenerateRequest(BaseModel):
+    title: str = Field(..., min_length=1)
+    target_type: TargetType
+    test_level: TestLevel
+    spec_text: str = Field(..., min_length=1)
+    supplement: str | None = None
+
+
+class TestDesignGenerateResponse(BaseModel):
+    title: str
+    target_type: TargetType
+    test_level: TestLevel
+    viewpoints: list[Viewpoint]
+    test_cases: list[TestCase]
+    markdown: str
+
+
+class TestDesignHistorySummary(BaseModel):
+    id: int
+    title: str
+    target_type: str
+    test_level: str
+    created_at: datetime
+
+
+class TestDesignHistoryDetail(BaseModel):
+    id: int
+    title: str
+    target_type: str
+    test_level: str
+    spec_text: str
+    supplement: str | None
+    viewpoints: list[Viewpoint]
+    test_cases: list[TestCase]
+    markdown: str
+    created_at: datetime

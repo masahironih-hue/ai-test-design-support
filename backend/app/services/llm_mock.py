@@ -1,7 +1,7 @@
 from app.models.test_design import (
-    GenerateTestDesignRequest,
-    GenerateTestDesignResponse,
     TestCase,
+    TestDesignGenerateRequest,
+    TestDesignGenerateResponse,
     Viewpoint,
 )
 
@@ -22,15 +22,15 @@ _TEST_LEVEL_LABELS = {
 
 
 def generate_test_design_mock(
-    request: GenerateTestDesignRequest,
-) -> GenerateTestDesignResponse:
+    request: TestDesignGenerateRequest,
+) -> TestDesignGenerateResponse:
     """LLMの代替として固定ルールでテスト設計結果を生成する。"""
 
     viewpoints = _build_viewpoints(request)
     test_cases = _build_test_cases(request)
     markdown = _build_markdown(request, viewpoints, test_cases)
 
-    return GenerateTestDesignResponse(
+    return TestDesignGenerateResponse(
         title=request.title,
         target_type=request.target_type,
         test_level=request.test_level,
@@ -40,7 +40,7 @@ def generate_test_design_mock(
     )
 
 
-def _build_viewpoints(request: GenerateTestDesignRequest) -> list[Viewpoint]:
+def _build_viewpoints(request: TestDesignGenerateRequest) -> list[Viewpoint]:
     """対象種別に応じた最小限のテスト観点を生成する。"""
 
     title = request.title
@@ -92,7 +92,7 @@ def _build_viewpoints(request: GenerateTestDesignRequest) -> list[Viewpoint]:
 
 
 def _build_target_specific_viewpoints(
-    request: GenerateTestDesignRequest,
+    request: TestDesignGenerateRequest,
 ) -> list[str]:
     """target_type ごとの差分観点を返す。"""
 
@@ -129,7 +129,7 @@ def _build_target_specific_viewpoints(
     return ["対象種別に応じた固有観点を確認すること"]
 
 
-def _build_test_cases(request: GenerateTestDesignRequest) -> list[TestCase]:
+def _build_test_cases(request: TestDesignGenerateRequest) -> list[TestCase]:
     """最小限のテストケースを生成する。"""
 
     return [
@@ -167,7 +167,7 @@ def _build_test_cases(request: GenerateTestDesignRequest) -> list[TestCase]:
 
 
 def _build_markdown(
-    request: GenerateTestDesignRequest,
+    request: TestDesignGenerateRequest,
     viewpoints: list[Viewpoint],
     test_cases: list[TestCase],
 ) -> str:

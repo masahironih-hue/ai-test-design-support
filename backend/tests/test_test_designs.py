@@ -79,3 +79,25 @@ def test_generate_test_design_title_required() -> None:
     response = client.post("/test-designs/generate", json=payload)
 
     assert response.status_code == 422
+
+def test_generate_test_design(client):
+    payload = {
+        "title": "架空の在庫引当API",
+        "target_type": "api",
+        "test_level": "integration",
+        "spec_text": "商品IDと数量を受け取り、在庫引当を行う架空のAPI。",
+        "supplement": "外部倉庫システムとの連携はMockとする。",
+    }
+
+    response = client.post("/test-designs/generate", json=payload)
+
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["title"] == payload["title"]
+    assert body["target_type"] == payload["target_type"]
+    assert body["test_level"] == payload["test_level"]
+    assert isinstance(body["viewpoints"], list)
+    assert isinstance(body["test_cases"], list)
+    assert isinstance(body["markdown"], str)
+    assert body["markdown"]

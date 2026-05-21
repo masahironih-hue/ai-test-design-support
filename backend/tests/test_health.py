@@ -14,3 +14,9 @@ def test_health_check_returns_ok() -> None:
         "status": "ok",
         "service": "ai-test-design-support-backend",
     }
+
+def test_health_check(client):
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"

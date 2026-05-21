@@ -33,3 +33,8 @@ Thumbs.db
 
 # VS Code
 .vscode/
+
+# Python package metadata
+*.egg-info/
+build/
+dist/
