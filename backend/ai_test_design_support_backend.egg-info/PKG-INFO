@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: ai-test-design-support-backend
+Version: 0.1.0
+Summary: Backend API for AI test design support tool
+Requires-Python: >=3.13
+Requires-Dist: fastapi
+Requires-Dist: uvicorn[standard]
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: httpx; extra == "dev"
