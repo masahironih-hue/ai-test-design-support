@@ -1,113 +1,360 @@
-﻿# AI Test Design Support
+﻿# 業務系SE向け AIテスト設計支援ツール
 
-業務系SE向けの AIテスト設計支援ツールです。
+## 概要
 
-仕様メモ、画面仕様、API仕様、バッチ仕様、DB更新仕様、外部連携仕様などを入力し、テスト観点・テストケース・確認事項の生成を支援するWebアプリケーションを目指します。
+「業務系SE向け AIテスト設計支援ツール」は、機能概要や仕様メモを入力すると、テスト観点・テストケース・確認事項を生成するWebアプリケーションです。
 
-## 目的
+業務系システム開発における、以下のようなテスト設計作業を支援することを目的としています。
 
-このプロジェクトは、以下を目的とした個人開発ポートフォリオです。
+- 仕様メモからテスト観点を洗い出す
+- 正常系・異常系・境界値などの確認観点を整理する
+- テストケース表のたたき台を作成する
+- Markdown形式で生成結果をコピーし、設計メモやレビュー資料に転用しやすくする
 
-- 業務系SE経験を活かしたWebアプリケーション開発
-- Python / FastAPI を用いたバックエンド開発
-- React / Next.js / TypeScript を用いたフロントエンド開発
-- LLMを活用したテスト設計支援機能の実装
-- 将来的なAWS低コスト構成への展開
+本アプリは汎用チャットボットではなく、仕様入力からテスト設計出力までの流れに特化した、業務系SE向けのテスト設計支援ツールです。
 
-## 想定機能
+---
 
-初期MVPでは、以下の流れを実現します。
+## 開発目的
 
-1. 仕様メモを入力する
-2. LLM Mockでテスト観点を生成する
-3. 生成結果をMarkdown形式で表示する
-4. 生成履歴をSQLiteに保存する
+このプロジェクトは、個人開発のポートフォリオとして、以下を示すことを目的に開発しています。
 
-## 想定する出力
+- Python / FastAPI を用いたBackend API開発
+- React / Next.js / TypeScript を用いたFrontend開発
+- LLMを利用した業務支援アプリケーション設計
+- 業務系システム開発経験を活かしたテスト設計支援の具体化
+- 将来的にAWS SAAの学習内容を、低コストなAWS構成として実装に落とし込むための土台作り
 
-- 正常系テスト観点
-- 異常系テスト観点
-- 境界値
-- 入力チェック
-- DB更新確認
-- 外部連携確認
-- 権限確認
-- ログ確認
-- リカバリ観点
-- 性能観点
-- 追加確認事項
-- テストケース表
+現時点では、ローカルMVPとして主要機能を実装しています。  
+AWSデプロイ、OpenAI API連携、Amazon Bedrock連携は今後の拡張候補です。
+
+---
+
+## 主な機能
+
+現時点のローカルMVPでは、以下の機能を実装しています。
+
+- 仕様入力フォーム
+- テスト対象種別の選択
+- テストレベルの選択
+- LLM Mockによるテスト観点生成
+- テストケース生成
+- Markdown形式の生成結果表示
+- Markdownコピー
+- SQLiteへの履歴保存
+- 履歴一覧表示
+- 履歴詳細表示
+- 保存済みMarkdownコピー
+- セキュリティ注意事項表示
+- 日時のJST表示
+
+---
 
 ## 技術スタック
 
 ### Backend
 
-- Python
+- Python 3.13.x
 - FastAPI
-- Uvicorn
+- SQLAlchemy
 - SQLite
-- SQLModel または SQLAlchemy
 - pytest
+- Uvicorn
 
 ### Frontend
 
 - Next.js
 - React
 - TypeScript
+- pnpm
+- App Router
+
+### その他
+
+- Git / GitHub
+- GitHub Issues
+- LLM Mock
+
+### 将来の拡張候補
+
+- OpenAI API
+- Amazon Bedrock
+- AWS CDK
+- DynamoDB
+- S3 / CloudFront
+- API Gateway / Lambda
+- CloudWatch Logs
+
+---
+
+## ディレクトリ構成
+
+```text
+ai-test-design-support/
+├─ backend/
+│  ├─ app/
+│  ├─ tests/
+│  ├─ pyproject.toml
+│  └─ README.md
+├─ frontend/
+│  ├─ src/
+│  ├─ package.json
+│  ├─ .env.example
+│  └─ README.md
+├─ docs/
+└─ README.md
+```
+
+---
+
+## ローカル起動手順
+
+### 前提
+
+以下がインストール済みであることを前提とします。
+
+- Python 3.13.x
 - Node.js
 - pnpm
+- Git
 
-### AI / LLM
+---
 
-- 初期は LLM Mock
-- 後続フェーズで OpenAI API 連携を検討
-- 将来的に Amazon Bedrock も検討
+### Backend起動
 
-### 将来検討
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn app.main:app --reload
+```
 
-- AWS CDK
-- S3 + CloudFront
-- API Gateway + Lambda
-- DynamoDB
-- CloudWatch Logs
-- AWS Budgets
+起動後、以下にアクセスして疎通確認します。
 
-## 初期方針
+```text
+http://localhost:8000/health
+```
 
-- まずはローカルMVPを優先する
-- 初期段階ではDockerを使用しない
-- 初期段階ではAWSを使用しない
-- 初期段階では認証、課金、マルチテナントは作り込まない
-- 初期LLM連携はMockで実装する
-- APIキー不要で起動できる状態を優先する
+---
 
-## セキュリティ方針
+### Frontend起動
 
-このプロジェクトでは、以下の情報を使用しません。
+別のPowerShellを開き、以下を実行します。
 
-- 顧客情報
-- 個人情報
-- 本業の実コード
-- 実ログ
-- 実設計書
-- APIキー
-- パスワード
-- アクセストークン
-- 本番環境情報
-- 業務機密
+```powershell
+cd frontend
+pnpm dev
+```
 
-開発・デモには、サンプル仕様・架空データのみを使用します。
+起動後、以下にアクセスします。
 
-`.env` はGit管理対象外とし、`.env.example` のみ管理します。
+```text
+http://localhost:3000
+```
 
-## ドキュメント
+---
 
-- [ローカル環境構築手順](docs/setup-local.md)
-- [開発運用方針](docs/development-policy.md)
-- [セキュリティ方針](docs/security-policy.md)
+## 環境変数
 
-## 現在のフェーズ
+Frontendでは、Backend APIの接続先として以下を使用します。
 
-現在は Phase 0：進め方・環境構築 です。
+```text
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
 
-まだ本格的な実装には入らず、開発環境、運用方針、初期ドキュメントを整備しています。
+設定例は以下のファイルを参照してください。
+
+```text
+frontend/.env.example
+```
+
+ローカル開発では、以下のように `.env.local` を作成して使用します。
+
+```text
+frontend/.env.local
+```
+
+注意事項：
+
+- `.env.local` はローカル開発用です
+- `.env.local` はGit管理対象外です
+- APIキー、パスワード、アクセストークンなどの秘密情報をGitHubに上げないでください
+- 現時点では外部LLM APIキーは不要です
+
+---
+
+## 操作手順
+
+1. Backendを起動する
+2. Frontendを起動する
+3. ブラウザで `http://localhost:3000` を開く
+4. 仕様入力フォームに架空サンプル仕様を入力する
+5. テスト対象種別を選択する
+6. テストレベルを選択する
+7. テスト設計を生成する
+8. 生成結果を確認する
+9. Markdownをコピーする
+10. 履歴一覧を確認する
+11. 履歴詳細を確認する
+12. 保存済みMarkdownをコピーする
+
+---
+
+## サンプル入力
+
+以下は動作確認用の架空サンプルです。  
+実案件の仕様、顧客情報、個人情報、業務機密は使用しないでください。
+
+```text
+タイトル：
+ログイン画面
+
+テスト対象種別：
+画面
+
+テストレベル：
+結合テスト
+
+仕様本文：
+利用者IDとパスワードを入力し、認証に成功した場合はメニュー画面へ遷移する。
+認証に失敗した場合はエラーメッセージを表示する。
+
+補足事項：
+業務系Webアプリのログイン機能を想定する。
+```
+
+---
+
+## テスト・確認コマンド
+
+### Backend
+
+```powershell
+cd backend
+python -m pytest
+```
+
+### Frontend
+
+```powershell
+cd frontend
+pnpm lint
+pnpm build
+```
+
+---
+
+## SQLite履歴保存仕様
+
+ローカルMVPでは、生成結果をSQLiteに保存します。
+
+主な仕様は以下です。
+
+- 生成結果はSQLiteに保存される
+- Backend再起動後も履歴は保持される
+- `init_db()` はテーブル作成用であり、既存履歴は削除しない
+- 開発中に履歴を初期化したい場合は、Backend停止後に開発用SQLite DBファイルを手動削除する
+- SQLite DBファイルはGit管理対象外とする
+
+---
+
+## 日時表示仕様
+
+日時は以下の方針で扱います。
+
+- Backend / DB ではUTC基準で扱う
+- Frontend表示時にJSTへ変換する
+
+例：
+
+```text
+UTC: 2026/05/22 07:35
+JST: 2026/05/22 16:35
+```
+
+---
+
+## セキュリティ・守秘義務上の注意
+
+本アプリの利用時は、以下の情報を入力しないでください。
+
+```text
+顧客名、個人情報、APIキー、パスワード、本番環境情報、業務機密を含む情報は入力しないでください。
+必要に応じてマスキングしてから利用してください。
+```
+
+開発・動作確認では、以下を徹底します。
+
+- 本業の顧客情報は使用しない
+- 実案件の設計書、実コード、実ログは使用しない
+- 個人情報は使用しない
+- サンプル仕様は架空データのみ使用する
+- `.env` / `.env.local` / SQLite DBファイルはGit管理対象外にする
+- APIキー、パスワード、アクセストークンをGitHubに上げない
+
+---
+
+## 現時点の制約
+
+現時点のローカルMVPには、以下の制約があります。
+
+- LLM Mockを使用しており、実際の外部LLM APIは呼び出していない
+- OpenAI API連携は未実装
+- Amazon Bedrock連携は未実装
+- AWSデプロイは未実装
+- 認証は未実装
+- 履歴検索・編集・削除は未実装
+- ファイルアップロードは未実装
+- Excel出力は未実装
+- Markdownレンダリングライブラリは未導入
+- マルチテナント・課金は未実装
+
+初期MVPでは、機能を広げすぎず、まずはローカル環境で「仕様入力 → 生成 → 表示 → 保存 → 履歴確認」まで動くことを優先しています。
+
+---
+
+## 今後の改善候補
+
+### AI / LLM 強化
+
+- OpenAI API連携
+- Amazon Bedrock対応
+- LLM Provider切替
+- プロンプトテンプレート管理
+- LLM利用回数制限
+- 生成根拠表示
+
+### AWS展開
+
+- AWS低コスト構成への展開
+- S3 + CloudFrontによるFrontend配信
+- API Gateway + LambdaによるBackend API公開
+- DynamoDBによる履歴保存
+- CloudWatch Logs確認手順
+- AWS CDKによるIaC化
+- AWS構成図の追加
+- AWSデプロイ手順・削除手順の整備
+
+### 業務アプリ機能強化
+
+- 画面キャプチャ追加
+- Excel出力
+- ファイルアップロード
+- 履歴検索 / 編集 / 削除
+- Markdown表示改善
+- 面談用説明文・スキルシート反映
+
+---
+
+## 関連docs
+
+詳細な設計・検討内容は以下を参照してください。
+
+- [MVP要件整理](docs/mvp-requirements.md)
+- [API設計](docs/api-design.md)
+- [DB設計](docs/db-design.md)
+- [LLM Mock設計](docs/llm-mock-design.md)
+- [画面設計](docs/screen-design.md)
+- [Markdown出力設計](docs/markdown-output.md)
+- [サンプル仕様](docs/sample-specs.md)
+- [Phase 1 実装前チェックリスト](docs/phase1-implementation-checklist.md)
+- [ローカルMVP総合動作確認](docs/local-mvp-verification.md)
