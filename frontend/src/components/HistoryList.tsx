@@ -111,7 +111,7 @@ export function HistoryList({
         <div>
           <h2>生成履歴</h2>
           <p>
-            保存済みのテスト設計生成履歴を表示します。詳細表示は後続タスクで実装します。
+            保存済みのテスト設計生成履歴を表示します。詳細ボタンから履歴詳細を確認できます。
           </p>
         </div>
 
@@ -170,9 +170,6 @@ export function HistoryList({
                 </div>
               </dl>
 
-              <p className="future-note">
-                詳細表示は次タスク「履歴詳細画面」で実装予定です。
-              </p>
               <button
                 type="button"
                 onClick={() => {
