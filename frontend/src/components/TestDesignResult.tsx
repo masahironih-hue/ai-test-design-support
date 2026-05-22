@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { TestDesignResponse } from "../lib/api";
 
 type TestDesignResultProps = {
@@ -19,6 +22,32 @@ const testLevelLabels: Record<string, string> = {
 };
 
 export default function TestDesignResult({ result }: TestDesignResultProps) {
+  type CopyStatus = "idle" | "success" | "error";
+
+  const [copyStatus, setCopyStatus] = useState<CopyStatus>("idle");
+
+  const markdown = result.markdown ?? "";
+  const canCopyMarkdown = markdown.trim().length > 0;
+
+  const handleCopyMarkdown = async () => {
+    if (!canCopyMarkdown) {
+      setCopyStatus("error");
+      return;
+    }
+
+    if (!navigator.clipboard) {
+      setCopyStatus("error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setCopyStatus("success");
+    } catch {
+      setCopyStatus("error");
+    }
+  };
+
   return (
     <section>
       <h2>生成結果</h2>
@@ -89,6 +118,34 @@ export default function TestDesignResult({ result }: TestDesignResultProps) {
         <h3>Markdown</h3>
         <pre>{result.markdown}</pre>
       </section>
+
+      <div className="result-section-header">
+        <h3>Markdown形式の生成結果</h3>
+
+        <button
+          type="button"
+          onClick={handleCopyMarkdown}
+          disabled={!canCopyMarkdown}
+          className="copy-button"
+        >
+          Markdownをコピー
+        </button>
+      </div>
+
+      {copyStatus === "success" && (
+        <p className="copy-message" role="status">
+          Markdownをコピーしました。
+        </p>
+      )}
+
+      {copyStatus === "error" && (
+        <p className="copy-message copy-message-error" role="alert">
+          Markdownのコピーに失敗しました。
+        </p>
+      )}
+
+      <pre className="markdown-preview">{markdown}</pre>
+
     </section>
   );
 }
