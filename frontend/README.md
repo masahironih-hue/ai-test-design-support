@@ -1,97 +1,102 @@
-# Frontend
+## Backend API 接続確認
 
-「業務系SE向け AIテスト設計支援ツール」の Frontend です。
+Frontend の仕様入力フォームから、Backend の `POST /test-designs/generate` API を呼び出し、生成結果を画面表示できるようにした。
 
-## 技術スタック
+### 前提
 
-- Next.js
-- React
-- TypeScript
-- pnpm
-- App Router
+Backend と Frontend を別々の PowerShell で起動する。
 
-## 起動手順
+```text
+Backend : http://localhost:8000
+Frontend: http://localhost:3000
+```
 
-リポジトリルートから以下を実行します。
+### 環境変数
+
+Frontend では Backend API の Base URL を以下で管理する。
+
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
+
+`.env.local` は Git 管理対象外とする。  
+設定例として `.env.example` のみ Git 管理対象に含める。
+
+### Backend 起動
+
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn app.main:app --reload
+```
+
+### Frontend 起動
 
 ```powershell
 cd frontend
-pnpm install
 pnpm dev
 ```
 
-ブラウザで以下を開きます。
+### 画面確認
+
+ブラウザで以下にアクセスする。
 
 ```text
 http://localhost:3000
 ```
 
-## 確認コマンド
+架空のサンプル仕様を入力し、以下を確認する。
 
-`frontend/` ディレクトリで以下を実行します。
+- API呼び出し中の状態が表示される
+- API成功時に生成結果が表示される
+- テスト観点が表示される
+- テストケースが表示される
+- Markdown形式の生成結果が表示される
+- API失敗時にエラーが表示される
+
+### CORS
+
+Frontend と Backend は別ポートで起動するため、Backend 側で CORS を設定する。
+
+許可オリジンはローカル開発用に限定する。
+
+```text
+http://localhost:3000
+```
+
+`allow_origins=["*"]` は使用しない。
+
+### 確認コマンド
+
+Frontend:
 
 ```powershell
+cd frontend
 pnpm lint
 pnpm build
 ```
 
-## 表示内容
+Backend:
 
-トップページでは、以下を表示します。
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+python -m pytest
+```
 
-- アプリ名
-  - 業務系SE向け AIテスト設計支援ツール
-- 簡単な説明
-  - 仕様メモからテスト観点・テストケース・確認事項を生成する支援ツールであること
-- 現在の実装状態
-  - Frontend 最小構成
-  - Backend API は実装済み
-  - API 接続は後続タスクで実装予定
-- セキュリティ注意事項
+### Git 管理対象外
 
-## セキュリティ注意事項
+以下は Git 管理対象に含めない。
 
-このアプリケーションでは、以下の情報を入力しないでください。
-
-- 顧客名
-- 個人情報
-- APIキー
-- パスワード
-- アクセストークン
-- 本番環境情報
-- 業務機密
-- 実際の設計書
-- 実際のソースコード
-- 実際のログ
-
-デモや検証には、架空データまたはマスキング済みデータのみを使用してください。
-
-## 今回の実装範囲
-
-今回の Frontend 最小構成では、以下のみを実装しています。
-
-- Next.js / React / TypeScript の最小構成
-- トップページ表示
-- アプリ概要の表示
-- 現在の実装状態の表示
-- セキュリティ注意事項の表示
-
-以下はまだ実装していません。
-
-- 仕様入力フォーム
-- Backend API 接続
-- 生成結果表示
-- Markdown コピー機能
-- 履歴一覧画面
-- 履歴詳細画面
-
-## Git 管理上の注意
-
-以下は Git 管理対象に含めません。
-
-- `node_modules/`
-- `.next/`
-- `.env`
-- `.env.local`
-- `.env.*.local`
-
+```text
+.env
+.env.local
+node_modules/
+.next/
+.venv/
+__pycache__/
+.pytest_cache/
+*.db
+*.sqlite
+*.sqlite3
+```

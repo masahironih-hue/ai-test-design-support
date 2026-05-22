@@ -1,21 +1,30 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 
-type TargetType = "" | "screen" | "api" | "batch" | "db" | "external";
-type TestLevel = "" | "unit" | "integration" | "system";
+import { generateTestDesign } from "../lib/api";
+import type {
+  TargetType,
+  TestDesignResponse,
+  TestLevel,
+} from "../lib/api";
+import TestDesignResult from "./TestDesignResult";
+
+type FormTargetType = "" | TargetType;
+type FormTestLevel = "" | TestLevel;
 
 type TestDesignFormValues = {
   title: string;
-  target_type: TargetType;
-  test_level: TestLevel;
+  target_type: FormTargetType;
+  test_level: FormTestLevel;
   spec_text: string;
   supplement: string;
 };
 
 type ValidationErrors = Partial<Record<keyof TestDesignFormValues, string>>;
 
-const targetTypeOptions: Array<{ value: Exclude<TargetType, "">; label: string }> = [
+const targetTypeOptions: Array<{ value: TargetType; label: string }> = [
   { value: "screen", label: "画面" },
   { value: "api", label: "API" },
   { value: "batch", label: "バッチ" },
@@ -23,7 +32,7 @@ const targetTypeOptions: Array<{ value: Exclude<TargetType, "">; label: string }
   { value: "external", label: "外部連携" },
 ];
 
-const testLevelOptions: Array<{ value: Exclude<TestLevel, "">; label: string }> = [
+const testLevelOptions: Array<{ value: TestLevel; label: string }> = [
   { value: "unit", label: "単体テスト" },
   { value: "integration", label: "結合テスト" },
   { value: "system", label: "システムテスト" },
@@ -36,14 +45,6 @@ const initialFormValues: TestDesignFormValues = {
   spec_text: "",
   supplement: "",
 };
-
-function getTargetTypeLabel(value: TargetType): string {
-  return targetTypeOptions.find((option) => option.value === value)?.label ?? "-";
-}
-
-function getTestLevelLabel(value: TestLevel): string {
-  return testLevelOptions.find((option) => option.value === value)?.label ?? "-";
-}
 
 function validateForm(values: TestDesignFormValues): ValidationErrors {
   const errors: ValidationErrors = {};
@@ -68,12 +69,15 @@ function validateForm(values: TestDesignFormValues): ValidationErrors {
 }
 
 export function TestDesignForm() {
-  const [formValues, setFormValues] = useState<TestDesignFormValues>(initialFormValues);
+  const [formValues, setFormValues] =
+    useState<TestDesignFormValues>(initialFormValues);
   const [errors, setErrors] = useState<ValidationErrors>({});
-  const [submittedValues, setSubmittedValues] = useState<TestDesignFormValues | null>(null);
+  const [apiError, setApiError] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [result, setResult] = useState<TestDesignResponse | null>(null);
 
   const handleChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = event.target;
 
@@ -83,28 +87,50 @@ export function TestDesignForm() {
     }));
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const validationErrors = validateForm(formValues);
     setErrors(validationErrors);
+    setApiError("");
 
     if (Object.keys(validationErrors).length > 0) {
-      setSubmittedValues(null);
+      setResult(null);
       return;
     }
 
-    setSubmittedValues(formValues);
+    setIsSubmitting(true);
+    setResult(null);
+
+    try {
+      const response = await generateTestDesign({
+        title: formValues.title,
+        target_type: formValues.target_type as TargetType,
+        test_level: formValues.test_level as TestLevel,
+        spec_text: formValues.spec_text,
+        supplement: formValues.supplement,
+      });
+
+      setResult(response);
+    } catch (error) {
+      if (error instanceof Error) {
+        setApiError(error.message);
+      } else {
+        setApiError("API呼び出し中に不明なエラーが発生しました。");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <section className="form-section" aria-labelledby="test-design-form-title">
       <div className="section-header">
-        <p className="section-label">Phase 1 / Frontend</p>
+        <p className="section-label">Phase 1 / Frontend + Backend API</p>
         <h2 id="test-design-form-title">仕様入力フォーム</h2>
         <p>
-          テスト設計生成に必要な仕様情報を入力します。今回は Backend API
-          には接続せず、入力値の状態管理と最小バリデーションを確認します。
+          テスト設計生成に必要な仕様情報を入力し、Backend API
+          を呼び出してテスト観点・テストケース・Markdown形式の結果を生成します。
         </p>
       </div>
 
@@ -148,7 +174,9 @@ export function TestDesignForm() {
                 </option>
               ))}
             </select>
-            {errors.target_type && <p className="error-message">{errors.target_type}</p>}
+            {errors.target_type && (
+              <p className="error-message">{errors.target_type}</p>
+            )}
           </div>
 
           <div className="form-field">
@@ -167,7 +195,9 @@ export function TestDesignForm() {
                 </option>
               ))}
             </select>
-            {errors.test_level && <p className="error-message">{errors.test_level}</p>}
+            {errors.test_level && (
+              <p className="error-message">{errors.test_level}</p>
+            )}
           </div>
         </div>
 
@@ -179,10 +209,12 @@ export function TestDesignForm() {
             value={formValues.spec_text}
             onChange={handleChange}
             rows={8}
-            placeholder="例：架空のログイン画面仕様、入力チェック、認証処理、エラー表示仕様などを入力してください。"
+            placeholder="例：利用者IDとパスワードを入力し、認証に成功した場合はメニュー画面へ遷移する。認証に失敗した場合はエラーメッセージを表示する。"
             aria-invalid={Boolean(errors.spec_text)}
           />
-          {errors.spec_text && <p className="error-message">{errors.spec_text}</p>}
+          {errors.spec_text && (
+            <p className="error-message">{errors.spec_text}</p>
+          )}
         </div>
 
         <div className="form-field">
@@ -193,49 +225,37 @@ export function TestDesignForm() {
             value={formValues.supplement}
             onChange={handleChange}
             rows={4}
-            placeholder="例：確認したい観点、前提条件、特記事項など"
+            placeholder="例：業務系Webアプリのログイン機能を想定する。"
           />
           <p className="field-help">任意入力です。</p>
         </div>
 
+        {apiError && (
+          <p className="error-message" role="alert">
+            APIエラー: {apiError}
+          </p>
+        )}
+
+        {isSubmitting && (
+          <p className="field-help" aria-live="polite">
+            Backend API に接続しています...
+          </p>
+        )}
+
         <div className="form-actions">
-          <button type="submit">入力内容を確認する</button>
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "生成中..." : "テスト設計を生成する"}
+          </button>
         </div>
       </form>
 
-      {submittedValues && (
+      {result && (
         <div className="submitted-preview" aria-live="polite">
-          <h3>入力内容確認</h3>
-          <dl>
-            <div>
-              <dt>タイトル</dt>
-              <dd>{submittedValues.title}</dd>
-            </div>
-            <div>
-              <dt>テスト対象種別</dt>
-              <dd>
-                {getTargetTypeLabel(submittedValues.target_type)}
-                <span className="code-value">code: {submittedValues.target_type}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>テストレベル</dt>
-              <dd>
-                {getTestLevelLabel(submittedValues.test_level)}
-                <span className="code-value">code: {submittedValues.test_level}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>仕様本文</dt>
-              <dd className="pre-wrap">{submittedValues.spec_text}</dd>
-            </div>
-            <div>
-              <dt>補足事項</dt>
-              <dd className="pre-wrap">{submittedValues.supplement || "未入力"}</dd>
-            </div>
-          </dl>
+          <TestDesignResult result={result} />
         </div>
       )}
     </section>
   );
 }
+
+export default TestDesignForm;
