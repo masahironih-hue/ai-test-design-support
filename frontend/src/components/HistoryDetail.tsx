@@ -1,4 +1,5 @@
 import type { TestDesignHistoryDetail } from "@/lib/api";
+import { formatDateTimeJst } from "@/lib/date";
 
 type HistoryDetailProps = {
   selectedHistoryId: number | null;
@@ -27,15 +28,15 @@ function formatLabel(labels: Record<string, string>, value: string): string {
   return labels[value] ?? value;
 }
 
-function formatDateTime(value: string): string {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString("ja-JP");
-}
+//function formatDateTime(value: string): string {
+//  const date = new Date(value);
+//
+//  if (Number.isNaN(date.getTime())) {
+//    return value;
+//  }
+//
+//  return date.toLocaleString("ja-JP");
+//}
 
 export function HistoryDetail({
   selectedHistoryId,
@@ -102,7 +103,7 @@ export function HistoryDetail({
             テストレベル：
             {formatLabel(testLevelLabels, history.test_level)}
           </p>
-          <p>作成日時：{formatDateTime(history.created_at)}</p>
+          <p>作成日時：{formatDateTimeJst(history.created_at)}</p>
         </div>
       </div>
 
