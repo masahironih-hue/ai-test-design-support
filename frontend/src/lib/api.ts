@@ -47,6 +47,31 @@ type HistoryListResponse =
     histories?: TestDesignHistory[];
   };
 
+  export type TestDesignViewpoint = {
+  category: string;
+  items: string[];
+};
+
+export type TestDesignTestCase = {
+  case_no: string;
+  category: string;
+  condition: string;
+  expected_result: string;
+};
+
+export type TestDesignHistoryDetail = {
+  id: number;
+  title: string;
+  target_type: string;
+  test_level: string;
+  spec_text: string;
+  supplement?: string | null;
+  viewpoints: TestDesignViewpoint[];
+  test_cases: TestDesignTestCase[];
+  markdown: string;
+  created_at: string;
+};
+
 const getApiBaseUrl = (): string => {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -167,4 +192,25 @@ export async function generateTestDesign(
   }
 
   return response.json() as Promise<TestDesignResponse>;
+}
+
+export async function fetchTestDesignHistoryDetail(
+  historyId: number,
+): Promise<TestDesignHistoryDetail> {
+  const response = await fetch(
+    `${API_BASE_URL}/test-designs/histories/${historyId}`,
+    {
+      method: "GET",
+    },
+  );
+
+  if (response.status === 404) {
+    throw new Error("NOT_FOUND");
+  }
+
+  if (!response.ok) {
+    throw new Error("履歴詳細の取得に失敗しました。");
+  }
+
+  return response.json();
 }

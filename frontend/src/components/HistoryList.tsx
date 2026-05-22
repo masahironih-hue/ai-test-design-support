@@ -9,6 +9,11 @@ import {
   type TestLevel,
 } from "@/lib/api";
 
+type HistoryListProps = {
+  selectedHistoryId?: number | null;
+  onSelectHistory?: (historyId: number) => void | Promise<void>;
+};
+
 const targetTypeLabels: Record<TargetType, string> = {
   screen: "画面",
   api: "API",
@@ -39,7 +44,10 @@ const formatDateTime = (value: string): string => {
   }).format(date);
 };
 
-export default function HistoryList() {
+export function HistoryList({
+  selectedHistoryId = null,
+  onSelectHistory,
+}: HistoryListProps) {
   const [histories, setHistories] = useState<TestDesignHistory[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
@@ -164,6 +172,15 @@ export default function HistoryList() {
               <p className="future-note">
                 詳細表示は次タスク「履歴詳細画面」で実装予定です。
               </p>
+              <button
+                type="button"
+                onClick={() => {
+                  void onSelectHistory?.(history.id);
+                }}
+                className="rounded bg-gray-900 px-3 py-2 text-sm font-semibold text-white"
+              >
+                {selectedHistoryId === history.id ? "選択中" : "詳細を表示"}
+              </button>
             </article>
           ))}
         </div>

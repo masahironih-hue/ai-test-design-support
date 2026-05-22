@@ -1,5 +1,5 @@
-import HistoryList from "@/components/HistoryList";
-import TestDesignForm from "@/components/TestDesignForm";
+import { HistorySection } from "@/components/HistorySection";
+import { TestDesignForm } from "@/components/TestDesignForm";
 
 export default function Home() {
   return (
@@ -21,7 +21,7 @@ export default function Home() {
 
       <TestDesignForm />
 
-      <HistoryList />
+      <HistorySection />
     </main>
   );
 }
