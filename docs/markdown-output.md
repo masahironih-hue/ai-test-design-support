@@ -14,6 +14,17 @@ Markdown出力の目的は、生成結果を以下の用途に再利用しやす
 - 面談時のデモ説明
 - 将来のExcel出力やテンプレート出力への拡張
 
+## 更新メモ
+
+本ドキュメントは、ローカルMVP総合動作確認後の実装状態に合わせて、APIパス、入力項目名、`target_type` / `test_level` のコード値を更新しています。
+
+- 生成API: `POST /test-designs/generate`
+- 履歴一覧API: `GET /test-designs/histories`
+- 履歴詳細API: `GET /test-designs/histories/{history_id}`
+- 入力項目: `title`、`target_type`、`test_level`、`spec_text`、`supplement`
+- `target_type`: `screen`、`api`、`batch`、`db`、`external`
+- `test_level`: `unit`、`integration`、`system`
+
 ---
 
 ## 2. Markdown出力方針
@@ -39,7 +50,7 @@ Markdownは、テスト設計生成APIの処理内で生成します。
 対象API：
 
 ```text
-POST /api/test-designs
+POST /test-designs/generate
 ```
 
 処理の流れ：
@@ -71,8 +82,8 @@ Markdownは、以下のデータをもとに生成します。
 | `title` | テスト設計タイトル |
 | `target_type` | テスト対象種別 |
 | `test_level` | テストレベル |
-| `input_text` | 仕様メモ |
-| `supplemental_notes` | 補足事項 |
+| `spec_text` | 仕様メモ |
+| `supplement` | 補足事項 |
 
 ### 4.2 生成結果JSON
 
@@ -247,7 +258,6 @@ MVPでは、入力タイトルをH1にしません。
 | `batch` | バッチ |
 | `db` | DB更新 |
 | `external` | 外部連携 |
-| `other` | その他 |
 
 ### test_level表示名
 
@@ -256,13 +266,12 @@ MVPでは、入力タイトルをH1にしません。
 | `unit` | 単体テスト |
 | `integration` | 結合テスト |
 | `system` | システムテスト |
-| `acceptance` | 受入テスト |
 
 ---
 
 ## 7.3 仕様メモ
 
-仕様メモには、ユーザーが入力した `input_text` を出力します。
+仕様メモには、ユーザーが入力した `spec_text` を出力します。
 
 ```markdown
 ## 仕様メモ
@@ -278,7 +287,7 @@ MVPでは、入力タイトルをH1にしません。
 
 ## 7.4 補足事項
 
-補足事項には、ユーザーが入力した `supplemental_notes` を出力します。
+補足事項には、ユーザーが入力した `supplement` を出力します。
 
 ```markdown
 ## 補足事項
@@ -535,10 +544,10 @@ def build_markdown(input_data, result_json, metadata):
     lines.append("")
 
     lines.extend(build_input_section(input_data))
-    lines.extend(build_spec_section(input_data.input_text))
+    lines.extend(build_spec_section(input_data.spec_text))
 
-    if input_data.supplemental_notes:
-        lines.extend(build_supplemental_section(input_data.supplemental_notes))
+    if input_data.supplement:
+        lines.extend(build_supplemental_section(input_data.supplement))
 
     lines.extend(build_summary_section(result_json["summary"]))
     lines.extend(build_viewpoints_section(result_json["viewpoints"]))
@@ -675,8 +684,8 @@ Markdown生成処理は、pytestで以下を確認します。
   "title": "注文登録APIのテスト設計",
   "target_type": "api",
   "test_level": "integration",
-  "input_text": "注文情報を受け取り、注文テーブルに登録するAPI。",
-  "supplemental_notes": "在庫引当失敗時はエラーを返す。"
+  "spec_text": "注文情報を受け取り、注文テーブルに登録するAPI。",
+  "supplement": "在庫引当失敗時はエラーを返す。"
 }
 ```
 
@@ -701,9 +710,9 @@ Markdown生成処理は、pytestで以下を確認します。
 {
   "title": "ログイン画面のテスト設計",
   "target_type": "screen",
-  "test_level": "acceptance",
-  "input_text": "ユーザーIDとパスワードを入力してログインする画面。",
-  "supplemental_notes": ""
+  "test_level": "integration",
+  "spec_text": "ユーザーIDとパスワードを入力してログインする画面。",
+  "supplement": ""
 }
 ```
 

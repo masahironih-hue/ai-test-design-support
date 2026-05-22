@@ -32,6 +32,17 @@ Markdownコピー
 - 業務系SE経験と接続できること
 - 守秘義務・セキュリティ上のリスクを避けること
 
+## 更新メモ
+
+本ドキュメントは、ローカルMVP総合動作確認後の実装状態に合わせて、APIパス、入力項目名、`target_type` / `test_level` のコード値を更新しています。
+
+- 生成API: `POST /test-designs/generate`
+- 履歴一覧API: `GET /test-designs/histories`
+- 履歴詳細API: `GET /test-designs/histories/{history_id}`
+- 入力項目: `title`、`target_type`、`test_level`、`spec_text`、`supplement`
+- `target_type`: `screen`、`api`、`batch`、`db`、`external`
+- `test_level`: `unit`、`integration`、`system`
+
 ---
 
 ## 2. MVPで作る機能
@@ -167,9 +178,9 @@ MVPで作成するAPIは以下です。
 | メソッド | パス | 用途 |
 |---|---|---|
 | GET | `/health` | ヘルスチェック |
-| POST | `/api/test-designs` | テスト設計生成 + 履歴保存 |
-| GET | `/api/test-designs` | 履歴一覧取得 |
-| GET | `/api/test-designs/{id}` | 履歴詳細取得 |
+| POST | `/test-designs/generate` | テスト設計生成 + 履歴保存 |
+| GET | `/test-designs/histories` | 履歴一覧取得 |
+| GET | `/test-designs/histories/{history_id}` | 履歴詳細取得 |
 
 ---
 
@@ -190,7 +201,7 @@ MVPで作成するAPIは以下です。
 
 ---
 
-### 5.2 POST `/api/test-designs`
+### 5.2 POST `/test-designs/generate`
 
 用途：
 
@@ -210,8 +221,8 @@ MVPでは、生成成功時に自動保存します。
   "title": "注文登録APIのテスト設計",
   "target_type": "api",
   "test_level": "integration",
-  "input_text": "注文情報を受け取り、注文テーブルと注文明細テーブルに登録するAPI。",
-  "supplemental_notes": "在庫引当処理は外部API連携で行う。"
+  "spec_text": "注文情報を受け取り、注文テーブルと注文明細テーブルに登録するAPI。",
+  "supplement": "在庫引当処理は外部API連携で行う。"
 }
 ```
 
@@ -223,8 +234,8 @@ MVPでは、生成成功時に自動保存します。
   "title": "注文登録APIのテスト設計",
   "target_type": "api",
   "test_level": "integration",
-  "input_text": "注文情報を受け取り、注文テーブルと注文明細テーブルに登録するAPI。",
-  "supplemental_notes": "在庫引当処理は外部API連携で行う。",
+  "spec_text": "注文情報を受け取り、注文テーブルと注文明細テーブルに登録するAPI。",
+  "supplement": "在庫引当処理は外部API連携で行う。",
   "result_json": {},
   "result_markdown": "# テスト設計結果\n...",
   "llm_provider": "mock",
@@ -236,7 +247,7 @@ MVPでは、生成成功時に自動保存します。
 
 ---
 
-### 5.3 GET `/api/test-designs`
+### 5.3 GET `/test-designs/histories`
 
 用途：
 
@@ -260,7 +271,7 @@ MVPでは、作成日時の降順で取得します。
 
 ---
 
-### 5.4 GET `/api/test-designs/{id}`
+### 5.4 GET `/test-designs/histories/{history_id}`
 
 用途：
 
@@ -274,8 +285,8 @@ MVPでは、作成日時の降順で取得します。
   "title": "注文登録APIのテスト設計",
   "target_type": "api",
   "test_level": "integration",
-  "input_text": "注文情報を受け取り、注文テーブルと注文明細テーブルに登録するAPI。",
-  "supplemental_notes": "在庫引当処理は外部API連携で行う。",
+  "spec_text": "注文情報を受け取り、注文テーブルと注文明細テーブルに登録するAPI。",
+  "supplement": "在庫引当処理は外部API連携で行う。",
   "result_json": {},
   "result_markdown": "# テスト設計結果\n...",
   "llm_provider": "mock",
@@ -305,8 +316,8 @@ test_design_histories
 | title | string | 必須 | タイトル |
 | target_type | string | 必須 | テスト対象種別 |
 | test_level | string | 必須 | テストレベル |
-| input_text | text | 必須 | 入力された仕様メモ |
-| supplemental_notes | text | 任意 | 補足事項 |
+| spec_text | text | 必須 | 入力された仕様メモ |
+| supplement | text | 任意 | 補足事項 |
 | result_json | text | 必須 | 生成結果JSON文字列 |
 | result_markdown | text | 必須 | Markdown文字列 |
 | llm_provider | string | 必須 | 初期値は `mock` |
@@ -352,8 +363,8 @@ Mockサービスへの入力例：
   "title": "注文登録APIのテスト設計",
   "target_type": "api",
   "test_level": "integration",
-  "input_text": "注文情報を受け取り、注文テーブルと注文明細テーブルに登録するAPI。",
-  "supplemental_notes": "在庫引当処理は外部API連携で行う。"
+  "spec_text": "注文情報を受け取り、注文テーブルと注文明細テーブルに登録するAPI。",
+  "supplement": "在庫引当処理は外部API連携で行う。"
 }
 ```
 
@@ -589,7 +600,7 @@ Phase 1では、以下の単位でIssue化します。
 | Backend: FastAPIの最小構成を作成する | FastAPI起動、health API |
 | Backend: SQLite/SQLModelのDB接続を作成する | DB接続、履歴テーブル |
 | Backend: LLM Mockサービスを作成する | Mock生成ロジック |
-| Backend: テスト設計生成APIを作成する | POST `/api/test-designs` |
+| Backend: テスト設計生成APIを作成する | POST `/test-designs/generate` |
 | Backend: 履歴一覧・詳細APIを作成する | GET一覧、GET詳細 |
 | Backend: pytestで主要APIをテストする | health、生成、履歴取得 |
 | Frontend: Next.jsの最小構成を作成する | 画面起動、基本レイアウト |
@@ -661,9 +672,9 @@ Phase 1では、以下の順序で実装します。
 
 作成対象：
 
-- POST `/api/test-designs`
-- GET `/api/test-designs`
-- GET `/api/test-designs/{id}`
+- POST `/test-designs/generate`
+- GET `/test-designs/histories`
+- GET `/test-designs/histories/{history_id}`
 
 目的：
 
