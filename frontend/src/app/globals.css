@@ -292,3 +292,108 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
+
+.history-section {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.section-header h2 {
+  margin: 0 0 0.5rem;
+}
+
+.section-header p {
+  margin: 0;
+  color: #555;
+}
+
+.secondary-button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  background: #f8f8f8;
+  cursor: pointer;
+}
+
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.info-message {
+  color: #444;
+}
+
+.error-message {
+  padding: 0.75rem;
+  border: 1px solid #e0a0a0;
+  border-radius: 8px;
+  background: #fff5f5;
+  color: #9b1c1c;
+}
+
+.empty-message {
+  padding: 1rem;
+  border: 1px dashed #bbb;
+  border-radius: 8px;
+  background: #fafafa;
+  color: #555;
+}
+
+.empty-message p {
+  margin: 0.25rem 0;
+}
+
+.history-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.history-card {
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.history-card h3 {
+  margin: 0 0 0.75rem;
+}
+
+.history-card dl {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.history-card dl div {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 0.5rem;
+}
+
+.history-card dt {
+  font-weight: 600;
+  color: #444;
+}
+
+.history-card dd {
+  margin: 0;
+}
+
+.future-note {
+  margin: 0.75rem 0 0;
+  color: #666;
+  font-size: 0.9rem;
+}

@@ -32,8 +32,71 @@ export type TestDesignResponse = {
   markdown: string;
 };
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+export type TestDesignHistory = {
+  id: number;
+  title: string;
+  target_type: TargetType;
+  test_level: TestLevel;
+  created_at: string;
+};
+
+type HistoryListResponse =
+  | TestDesignHistory[]
+  | {
+    items?: TestDesignHistory[];
+    histories?: TestDesignHistory[];
+  };
+
+const getApiBaseUrl = (): string => {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  if (!apiBaseUrl) {
+    throw new Error("NEXT_PUBLIC_API_BASE_URL is not set.");
+  }
+
+  return apiBaseUrl;
+};
+
+const extractHistories = (
+  responseBody: HistoryListResponse,
+): TestDesignHistory[] => {
+  if (Array.isArray(responseBody)) {
+    return responseBody;
+  }
+
+  if (Array.isArray(responseBody.items)) {
+    return responseBody.items;
+  }
+
+  if (Array.isArray(responseBody.histories)) {
+    return responseBody.histories;
+  }
+
+  return [];
+};
+
+export const fetchTestDesignHistories = async (): Promise<
+  TestDesignHistory[]
+> => {
+  const apiBaseUrl = getApiBaseUrl();
+
+  const response = await fetch(`${apiBaseUrl}/test-designs/histories`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch test design histories.");
+  }
+
+  const responseBody = (await response.json()) as HistoryListResponse;
+  return extractHistories(responseBody);
+};
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 function buildUrl(path: string): string {
   return `${API_BASE_URL}${path}`;
