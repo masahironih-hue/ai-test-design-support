@@ -86,20 +86,20 @@ Phase 2では、まずAWS低コスト版としてS3 + CloudFrontによるFronten
 - 実際の料金はアクセス数、データ転送量、S3保存容量、リクエスト数により変動する
 - CloudFrontキャッシュ削除リクエストの使い方にも注意する
 
-### 6.3 見積もり2：Serverless Backend比較用
+### 6.3 見積もり2：Backend最小API
 
 | 項目 | 内容 |
 |---|---|
-| 想定用途 | Backend API / 履歴保存の後続AWS化比較 |
-| 主なサービス | API Gateway、Lambda、DynamoDB、CloudWatch Logs |
+| 想定用途 | `POST /test-designs/generate` 相当のMock生成API |
+| 主なサービス | API Gateway HTTP API、Lambda、CloudWatch Logs |
 | 月額概算 | `$0.15 USD` |
-| 採用判断 | 後続検討 |
+| 採用判断 | Phase 2 Backend最小APIとして採用 |
 
 備考：
 
-- FastAPIのLambda対応、SQLiteからDynamoDBへの保存方式変更が必要
-- CloudWatch Logs設計、ログ保持期間、削除手順の整理が必要
-- Phase 2初期ではFrontend静的配信を優先する
+- DynamoDB履歴保存は今回未使用
+- OpenAI API / Amazon Bedrockは今回未使用
+- CloudWatch Logs保持期間は7日
 
 ### 6.4 単純合算
 
@@ -109,7 +109,7 @@ Phase 2では、まずAWS低コスト版としてS3 + CloudFrontによるFronten
 | Serverless Backend比較用 | $0.15 USD |
 | 両方を採用した場合の単純合算 | $0.34 USD |
 
-この結果から、Phase 2初期では、まず S3 + CloudFront によるFrontend静的配信を採用します。
+この結果から、Phase 2では S3 + CloudFront によるFrontend静的配信に加え、API Gateway HTTP API + Lambda によるBackend最小APIを採用します。
 
 ## 7. Issue #23 実施結果との対応
 
@@ -187,14 +187,16 @@ cdk destroy 前に対象S3 Bucketの中身を手動削除
 
 Phase 2初期では、S3 + CloudFront によるFrontend静的配信を採用し、構築・表示確認・削除確認まで完了しました。
 
-Backend AWS化、DynamoDB、CloudWatch Logs本格利用は後続Issueで検討します。
+Backend最小APIとして、API Gateway HTTP API + Lambda + CloudWatch Logs を追加します。
+
+DynamoDB履歴保存、OpenAI API連携、Amazon Bedrock連携は後続Issueで検討します。
 
 AWS実務経験を過度に盛らず、以下のように説明します。
 
 ```text
 AWS SAAで学習した内容をもとに、個人開発のローカルMVPを低コストなAWS構成へ段階的に展開しています。
 S3 + CloudFrontによる静的Frontend配信をCDKで構築し、料金見積もり、Budgets、削除手順、既存AWS環境との分離を含めて確認しました。
-Backend APIのAWS化は後続検討です。
+Backend APIはMock生成APIのみAWS化し、履歴保存と実LLM連携は後続検討です。
 ```
 
 ## 13. 次アクション
@@ -206,20 +208,21 @@ Backend APIのAWS化は後続検討です。
 - Issue #23 closeコメントを作成する
 ## Backend Serverless構成の料金再確認観点
 
-Phase 2のBackend Serverless構成では、以下のサービスを候補とする。
+Phase 2のBackend最小APIでは、以下のサービスを利用する。
 
 ```text
 API Gateway HTTP API
 Lambda
-DynamoDB
 CloudWatch Logs
 ```
+
+DynamoDBは今回利用しない。履歴保存をAWS化する後続タスクで改めて見積もる。
 
 現時点の料金見積もりでは、Frontend配信とServerless Backend比較用を単純合算した場合、低頻度利用であれば月額は小さく収まる想定である。
 
 ```text
 S3 + CloudFront：$0.19 USD / 月 程度
-Serverless Backend比較用：$0.15 USD / 月 程度
+Backend最小API：$0.15 USD / 月 程度
 単純合算：$0.34 USD / 月 程度
 ```
 
@@ -230,15 +233,13 @@ Serverless Backend比較用：$0.15 USD / 月 程度
 - Lambdaの実行回数
 - Lambdaのメモリサイズ
 - Lambdaの実行時間
-- DynamoDBの読み書き回数
-- DynamoDBの保存容量
 - CloudWatch Logsのログ取り込み量
 - CloudWatch Logsの保存期間
 - データ転送量
 - Free Tierの適用状況
 - AWS Pricing Calculator上の前提条件
 
-そのため、Backend実装前にAWS Pricing Calculatorで再確認する。
+そのため、Backend Stackを継続利用する場合はAWS Pricing Calculatorで再確認する。
 
 ---
 
@@ -283,27 +284,9 @@ Backend処理にはPython Lambdaを利用する。
 
 ## DynamoDB
 
-履歴保存にはDynamoDBを利用する。
+今回のBackend最小APIではDynamoDBを利用しない。
 
-初期方針は以下。
-
-| 項目 | 方針 |
-|---|---|
-| 課金モード | オンデマンド |
-| テーブル用途 | 生成履歴保存 |
-| パーティションキー | `history_id` |
-| ソートキー | なし |
-| 検索 | 初期段階では実装しない |
-| TTL | 後続検討 |
-| バックアップ | 初期段階では作り込みすぎない |
-
-想定テーブル名は以下。
-
-```text
-ai-test-design-support-histories
-```
-
-初期段階では、履歴検索、編集、削除、ページネーション、ユーザー別管理、マルチテナントは対象外とする。
+履歴保存をAWS化する場合は、DynamoDBオンデマンドの読み書き回数、保存容量、削除時の履歴データ消失、TTL、バックアップ方針を後続タスクで見積もる。
 
 ---
 
@@ -359,7 +342,7 @@ Backend Serverless構成で注意する料金リスクは以下。
 |---|---|---|
 | APIリクエスト増加 | 外部から大量アクセスされる | 初期は公開範囲・CORS・利用導線を限定する |
 | Lambda実行時間増加 | 処理が重くなる | タイムアウトを短めに設定し、不要処理を避ける |
-| DynamoDB保存量増加 | 仕様本文やMarkdownを大量保存する | 入力文字数制限、保存件数の運用方針を検討する |
+| DynamoDB保存量増加 | 後続で履歴保存を追加した場合に保存量が増える | 今回はDynamoDB未使用。追加時に保存件数の運用方針を検討する |
 | CloudWatch Logs増加 | 本文や生成結果をログ出力する | ログ出力を最小化し、保持期間7日にする |
 | 削除漏れ | API Gateway / Lambda / DynamoDB / Logsが残る | `docs/aws-destroy.md` に削除確認手順を明記する |
 
@@ -370,7 +353,7 @@ Backend Serverless構成で注意する料金リスクは以下。
 以下のタイミングで料金見積もりを再確認する。
 
 - Backend実装前
-- API Gateway / Lambda / DynamoDB をCDKで追加する前
+- API Gateway / Lambda / DynamoDB をCDKで追加・変更する前
 - CloudWatch Logs保持期間を設定する前
 - OpenAI API / Amazon Bedrock連携を検討する前
 - READMEやdocsに料金目安を追記する前

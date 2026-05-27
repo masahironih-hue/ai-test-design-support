@@ -26,7 +26,9 @@
 - AWS SAAの学習内容を、低コストなAWS構成として実装に落とし込むこと
 
 現時点では、Phase 1：ローカルMVPとして主要機能を実装済みです。  
-Phase 2：AWS低コスト版では、S3 + CloudFront による Frontend静的配信を検証済みです。Backend APIのAWS化、OpenAI API連携、Amazon Bedrock連携は今後の拡張候補です。
+Phase 2：AWS低コスト版では、S3 + CloudFront による Frontend静的配信に加え、API Gateway HTTP API + Python Lambda による最小Backend APIを追加しています。
+
+AWS上のBackend APIはMock生成APIの単体疎通を目的とした最小構成であり、DynamoDB履歴保存、履歴一覧・履歴詳細API、実LLM連携は未実装です。
 
 ---
 
@@ -48,6 +50,7 @@ Phase 2：AWS低コスト版では、S3 + CloudFront による Frontend静的配
 - セキュリティ注意事項表示
 - 日時のJST表示
 - AWS CDKによるS3 + CloudFront Frontend静的配信検証
+- API Gateway HTTP API + Python LambdaによるBackend最小API
 
 ---
 
@@ -112,6 +115,9 @@ Phase 1：ローカルMVPで実装した主要画面です。
 - Amazon S3
 - Amazon CloudFront
 - CloudFront Origin Access Control
+- Amazon API Gateway HTTP API
+- AWS Lambda
+- Amazon CloudWatch Logs
 
 ### 将来の拡張候補
 
@@ -196,7 +202,7 @@ http://localhost:3000
 
 ## AWS低コスト版
 
-Phase 2では、AWS低コスト版の第一歩として、Frontendを S3 + CloudFront で静的配信する構成を検証しました。
+Phase 2では、AWS低コスト版として、Frontendを S3 + CloudFront で静的配信する構成に加え、API Gateway HTTP API + Python Lambda による最小Backend APIを追加しています。
 
 構成概要は以下です。
 
@@ -204,14 +210,17 @@ Phase 2では、AWS低コスト版の第一歩として、Frontendを S3 + Cloud
 - 静的ファイルをS3バケットへ配置
 - S3バケットはPublic公開せず、CloudFront OAC経由で配信
 - AWS CDKでS3 Bucket、S3 Bucket Policy、CloudFront Distribution、CloudFront OACを管理
+- AWS CDKでAPI Gateway HTTP API、Python Lambda、CloudWatch Logsを管理
+- AWS上のBackend APIは `POST /test-designs/generate` 相当のMock生成APIのみ
+- CloudWatch Logs保持期間は7日
 - 既存VPC / EC2 / Security Group / Route 53 は使用・変更しない
 - 検証後は `cdk destroy` により本プロジェクト用リソースを削除可能
 
-現時点では、Backend APIのAWS化は未対応です。  
-そのため、CloudFrontで配信されるFrontend上では画面表示まで確認できますが、生成API・履歴APIの利用にはローカルBackend、または後続のAWS Backend構成が必要です。
+現時点では、FrontendからAWS Backend APIへの接続切替は未対応です。
 
-今回の検証では、CloudFront URLでFrontend画面表示を確認し、対象S3バケットの中身を手動削除したうえで `pnpm cdk destroy` による削除も確認済みです。  
-検証後のリソースは削除済みのため、READMEには常時公開URLを掲載していません。
+また、DynamoDB履歴保存、履歴一覧・履歴詳細API、OpenAI API連携、Amazon Bedrock連携は未実装です。
+
+READMEには、API Gateway URL、CloudFront DomainName、S3 Bucket名などの実値を掲載していません。
 
 詳細は以下を参照してください。
 
@@ -370,7 +379,9 @@ JST: 2026/05/22 16:35
 - OpenAI API連携は未実装
 - Amazon Bedrock連携は未実装
 - S3 + CloudFrontによるFrontend静的配信は検証済み。ただし、検証後にリソース削除済みのため常時公開URLは掲載していない
-- Backend APIのAWS化は未実装
+- AWS上のBackend APIはMock生成APIのみ対応している
+- Frontend接続切替は未実装
+- DynamoDB履歴保存、履歴一覧・履歴詳細APIのAWS化は未実装
 - 認証は未実装
 - 履歴検索・編集・削除は未実装
 - ファイルアップロードは未実装
@@ -396,7 +407,7 @@ JST: 2026/05/22 16:35
 ### AWS展開
 
 - S3 + CloudFrontによるFrontend静的配信の検証済み構成をREADME / docsへ反映
-- API Gateway + LambdaによるBackend API公開
+- API Gateway + LambdaによるBackend API公開範囲の拡張
 - DynamoDBによる履歴保存
 - CloudWatch Logs確認手順
 - AWS構成図の追加
@@ -404,19 +415,19 @@ JST: 2026/05/22 16:35
 
 ## AWS版の現在の対応範囲
 
-AWS版では、現時点で S3 + CloudFront による Frontend 静的配信まで対応しています。
+AWS版では、現時点で S3 + CloudFront による Frontend 静的配信と、API Gateway HTTP API + Python Lambda によるBackend最小APIまで対応しています。
 
 ```text
 Frontend：S3 + CloudFront で静的配信済み
-Backend API：未AWS化
+Backend API：API Gateway HTTP API + Python Lambda でMock生成APIのみ対応
 履歴保存：ローカルSQLite
 ```
 
-Backend APIと履歴保存は、現時点ではローカルMVP構成の FastAPI + SQLite を利用します。
+Frontend接続切替、履歴保存、履歴一覧・履歴詳細APIは、現時点ではローカルMVP構成の FastAPI + SQLite を利用します。
 
-API Gateway + Lambda + DynamoDB によるBackend Serverless構成は、後続のPhase 2タスクとして検討・実装予定です。
+API Gateway + Lambda + DynamoDB による履歴保存を含むBackend Serverless構成は、後続のPhase 2タスクとして検討・実装予定です。
 
-そのため、現時点のAWS版は「AWS上で全機能が動作する版」ではなく、「Frontend静的配信をAWS化した版」として位置づけます。
+そのため、現時点のAWS版は「AWS上で全機能が動作する版」ではなく、「Frontend静的配信とMock生成APIの単体疎通をAWS化した版」として位置づけます。
 
 ### 業務アプリ機能強化
 
