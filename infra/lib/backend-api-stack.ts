@@ -2,6 +2,7 @@ import * as cdk from "aws-cdk-lib";
 import { CfnOutput, RemovalPolicy } from "aws-cdk-lib";
 import * as apigwv2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as logs from "aws-cdk-lib/aws-logs";
@@ -19,6 +20,15 @@ export class BackendApiStack extends cdk.Stack {
         ? allowedOriginContext.trim()
         : "*";
     const functionName = `${projectName}-generate-test-design`;
+
+    const historiesTable = new dynamodb.Table(this, "TestDesignHistoriesTable", {
+      partitionKey: {
+        name: "history_id",
+        type: dynamodb.AttributeType.STRING,
+      },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
 
     const logGroup = new logs.LogGroup(this, "GenerateTestDesignLogGroup", {
       logGroupName: `/aws/lambda/${functionName}`,
@@ -38,6 +48,13 @@ export class BackendApiStack extends cdk.Stack {
       ),
     );
 
+    executionRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Scan"],
+        resources: [historiesTable.tableArn],
+      }),
+    );
+
     const generateFunction = new lambda.Function(
       this,
       "GenerateTestDesignFunction",
@@ -51,21 +68,24 @@ export class BackendApiStack extends cdk.Stack {
         role: executionRole,
         environment: {
           ALLOWED_ORIGIN: allowedOrigin,
+          HISTORIES_TABLE_NAME: historiesTable.tableName,
         },
         description:
-          "Mock generator for POST /test-designs/generate in ai-test-design-support",
+          "Mock generator and history API for ai-test-design-support",
       },
     );
 
     generateFunction.node.addDependency(logGroup);
+    generateFunction.node.addDependency(historiesTable);
 
     const httpApi = new apigwv2.HttpApi(this, "BackendHttpApi", {
       apiName: `${projectName}-backend-api`,
       description:
-        "Minimal HTTP API for ai-test-design-support backend mock generator",
+        "HTTP API for ai-test-design-support backend mock generator and histories",
       corsPreflight: {
         allowHeaders: ["content-type"],
         allowMethods: [
+          apigwv2.CorsHttpMethod.GET,
           apigwv2.CorsHttpMethod.OPTIONS,
           apigwv2.CorsHttpMethod.POST,
         ],
@@ -74,13 +94,27 @@ export class BackendApiStack extends cdk.Stack {
       },
     });
 
+    const generateIntegration = new integrations.HttpLambdaIntegration(
+      "GenerateTestDesignIntegration",
+      generateFunction,
+    );
+
     httpApi.addRoutes({
       path: "/test-designs/generate",
       methods: [apigwv2.HttpMethod.POST],
-      integration: new integrations.HttpLambdaIntegration(
-        "GenerateTestDesignIntegration",
-        generateFunction,
-      ),
+      integration: generateIntegration,
+    });
+
+    httpApi.addRoutes({
+      path: "/test-designs/histories",
+      methods: [apigwv2.HttpMethod.GET],
+      integration: generateIntegration,
+    });
+
+    httpApi.addRoutes({
+      path: "/test-designs/histories/{history_id}",
+      methods: [apigwv2.HttpMethod.GET],
+      integration: generateIntegration,
     });
 
     cdk.Tags.of(this).add("Project", projectName);
@@ -93,6 +127,11 @@ export class BackendApiStack extends cdk.Stack {
     new CfnOutput(this, "GenerateTestDesignPath", {
       description: "Path for the mock test design generation API",
       value: "/test-designs/generate",
+    });
+
+    new CfnOutput(this, "TestDesignHistoriesPath", {
+      description: "Path for the test design history list API",
+      value: "/test-designs/histories",
     });
   }
 }

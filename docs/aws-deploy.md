@@ -45,7 +45,7 @@ Browser
 - 既存IAM Role
 - 既存Route 53設定
 
-今回作成するのは、本プロジェクト用CDK Stackに含まれるS3 Bucket、S3 Bucket Policy、CloudFront OAC、CloudFront Distributionのみです。
+今回作成するのは、本プロジェクト用CDK Stackに含まれるS3 Bucket、S3 Bucket Policy、CloudFront OAC、CloudFront Distribution、API Gateway HTTP API、Lambda、DynamoDB、CloudWatch Logsです。
 
 ## 5. デプロイ対象
 
@@ -58,7 +58,7 @@ Browser
 | 配信 | CloudFront Distribution |
 | S3アクセス制御 | CloudFront OAC |
 
-Backend最小APIは、別Stack `AiTestDesignSupportBackendApiStack` で管理します。DynamoDB、Route 53、ACM、WAFは今回対象外です。
+Backend最小APIは、別Stack `AiTestDesignSupportBackendApiStack` で管理します。Route 53、ACM、WAFは今回対象外です。
 
 ## 6. リージョン確認
 
@@ -151,7 +151,7 @@ AWS::CloudFront::Distribution
 CloudFormation Outputs
 ```
 
-以下が含まれる場合は、今回の対象外のためデプロイ前に確認します。
+Frontend Stackのみを確認している場合、以下が含まれる場合はデプロイ前に確認します。Backend Stackを同時に確認している場合、Lambda、API Gateway、DynamoDBは作成対象です。
 
 ```text
 AWS::EC2::VPC
@@ -265,16 +265,16 @@ https://<CloudFrontDomainName>/
 - CloudFront URLでFrontend画面が表示される
 - S3 BucketがPublic公開されていない
 - CloudFront OAC経由でS3へアクセスできる
-- Backend API未AWS化による制約があることを確認する
+- Frontend接続切替が未対応であることを確認する
 
 ## Backend最小APIのデプロイ手順
 
-Phase 2 Backend最小APIとして、API Gateway HTTP API + Python Lambda による `POST /test-designs/generate` 相当のMock生成APIを追加する。
+Phase 2 Backend最小APIとして、API Gateway HTTP API + Python Lambda + DynamoDB によるMock生成APIと履歴保存APIを追加する。
 
 ```text
 Frontend：S3 + CloudFront で静的配信済み
-Backend API：API Gateway HTTP API + Python Lambda でMock生成APIのみ追加
-履歴保存：ローカルSQLite
+Backend API：API Gateway HTTP API + Python Lambda でMock生成API・履歴APIを追加
+履歴保存：DynamoDB
 ```
 
 構成は以下とする。
@@ -286,10 +286,12 @@ Python Lambda
 ↓
 LLM Mock相当の固定生成処理
 ↓
+DynamoDB履歴保存
+↓
 JSONレスポンス返却
 ```
 
-今回、DynamoDB履歴保存、履歴一覧API、履歴詳細API、OpenAI API連携、Amazon Bedrock連携、FastAPI on Lambda、Frontend接続切替は行わない。
+今回、OpenAI API連携、Amazon Bedrock連携、FastAPI on Lambda、Frontend接続切替、Cognito認証、本格API認証は行わない。
 
 ---
 
@@ -323,8 +325,9 @@ Backend Stackでは、以下を作成する。
 
 | リソース | 用途 |
 |---|---|
-| API Gateway HTTP API | `POST /test-designs/generate` を公開する |
+| API Gateway HTTP API | `POST /test-designs/generate`、履歴取得APIを公開する |
 | Python Lambda | LLM Mock相当の固定生成処理を実行する |
+| DynamoDB Table | 生成履歴を保存する |
 | Lambda Integration | HTTP APIとLambdaを接続する |
 | Lambda実行Role | Lambda実行とCloudWatch Logs出力を許可する |
 | CloudWatch Logs Log Group | Lambdaログを保存する |
@@ -342,7 +345,6 @@ Backend Stackでは、以下を作成する。
 - WAF
 - Cognito
 - Secrets Manager
-- DynamoDB
 - OpenAI API / Amazon Bedrock連携用の秘密情報
 
 ---
@@ -416,6 +418,11 @@ diffでは、以下が作成されることを確認する。
 - CloudWatch Logs Log Group、保持期間7日
 - Lambda Integration
 - `POST /test-designs/generate` route
+- `GET /test-designs/histories` route
+- `GET /test-designs/histories/{history_id}` route
+- DynamoDB Table
+- Lambda環境変数 `HISTORIES_TABLE_NAME`
+- Lambda IAM権限 `dynamodb:PutItem`、`dynamodb:GetItem`、`dynamodb:Scan`
 
 以下が作成・変更されないことを確認する。
 
@@ -423,7 +430,6 @@ diffでは、以下が作成されることを確認する。
 - 既存EC2
 - 既存Security Group
 - 既存Route 53設定
-- DynamoDB
 - NAT Gateway
 - ALB
 - RDS
@@ -469,7 +475,33 @@ Invoke-RestMethod `
 - HTTP 200で返る
 - `title`、`target_type`、`test_level` が返る
 - `viewpoints`、`test_cases`、`markdown` が返る
+- `history_id`、`created_at` が返る
 - レスポンスがJSONとして扱える
+
+履歴一覧APIは以下で確認する。
+
+```powershell
+$HistoriesUrl = "https://<api-id>.execute-api.<region>.amazonaws.com/test-designs/histories"
+
+$Histories = Invoke-RestMethod `
+  -Uri $HistoriesUrl `
+  -Method Get
+
+$Histories
+```
+
+履歴詳細APIは、生成APIまたは履歴一覧APIで取得した `history_id` を使って確認する。
+
+```powershell
+$HistoryId = "<history_id>"
+$HistoryDetailUrl = "https://<api-id>.execute-api.<region>.amazonaws.com/test-designs/histories/$HistoryId"
+
+Invoke-RestMethod `
+  -Uri $HistoryDetailUrl `
+  -Method Get
+```
+
+存在しない履歴IDでは404系レスポンスになることを確認する。
 
 異常系は必須項目不足で確認する。
 
@@ -499,6 +531,8 @@ Lambdaログでは以下を確認する。
 - request body全体が出ていない
 - `spec_text` が出ていない
 - `supplement` が出ていない
+- `markdown` が出ていない
+- DynamoDB item全体が出ていない
 - 認証情報やAWS識別子が出ていない
 - エラー時に過剰な詳細を出していない
 
@@ -506,12 +540,12 @@ Lambdaログでは以下を確認する。
 
 ## 実装・deploy前の確認事項
 
-Backend Serverless構成を実装する前に、以下を確認する。
+Backend Serverless構成をデプロイする前に、以下を確認する。
 
 - [ ] AWS Pricing Calculatorで料金を再確認した
 - [ ] AWS Budgetsまたはコスト監視方針を確認した
 - [ ] CloudWatch Logs保持期間を7日にする方針を確認した
-- [ ] DynamoDBは今回作成しないことを確認した
+- [ ] DynamoDB Tableが作成対象であり、削除時に履歴データが失われることを確認した
 - [ ] 既存VPC / EC2 / Security Group / Route 53 を使用・変更しない方針を確認した
 - [ ] Backend Stack名が `AiTestDesignSupportBackendApiStack` であることを確認した
 - [ ] AWSアカウントID、VPC ID、EC2 ID、IPアドレス、IAM認証情報をdocsへ記載していない
@@ -534,14 +568,11 @@ pnpm cdk deploy AiTestDesignSupportBackendApiStack
 
 ## 16. Backend APIについて
 
-現時点では、AWS上のBackend APIはMock生成APIの単体疎通確認を目的とした最小構成です。
+現時点では、AWS上のBackend APIはMock生成APIとDynamoDB履歴保存APIの単体疎通確認を目的とした最小構成です。
 
 以下は未実装です。
 
 - Frontend接続切替
-- DynamoDB履歴保存
-- 履歴一覧API
-- 履歴詳細API
 - OpenAI API連携
 - Amazon Bedrock連携
 

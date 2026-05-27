@@ -90,14 +90,14 @@ Phase 2では、まずAWS低コスト版としてS3 + CloudFrontによるFronten
 
 | 項目 | 内容 |
 |---|---|
-| 想定用途 | `POST /test-designs/generate` 相当のMock生成API |
-| 主なサービス | API Gateway HTTP API、Lambda、CloudWatch Logs |
+| 想定用途 | Mock生成APIとDynamoDB履歴保存API |
+| 主なサービス | API Gateway HTTP API、Lambda、DynamoDB、CloudWatch Logs |
 | 月額概算 | `$0.15 USD` |
 | 採用判断 | Phase 2 Backend最小APIとして採用 |
 
 備考：
 
-- DynamoDB履歴保存は今回未使用
+- DynamoDBはオンデマンド課金で低頻度利用を前提
 - OpenAI API / Amazon Bedrockは今回未使用
 - CloudWatch Logs保持期間は7日
 
@@ -109,7 +109,7 @@ Phase 2では、まずAWS低コスト版としてS3 + CloudFrontによるFronten
 | Serverless Backend比較用 | $0.15 USD |
 | 両方を採用した場合の単純合算 | $0.34 USD |
 
-この結果から、Phase 2では S3 + CloudFront によるFrontend静的配信に加え、API Gateway HTTP API + Lambda によるBackend最小APIを採用します。
+この結果から、Phase 2では S3 + CloudFront によるFrontend静的配信に加え、API Gateway HTTP API + Lambda + DynamoDB によるBackend最小APIを採用します。
 
 ## 7. Issue #23 実施結果との対応
 
@@ -187,16 +187,16 @@ cdk destroy 前に対象S3 Bucketの中身を手動削除
 
 Phase 2初期では、S3 + CloudFront によるFrontend静的配信を採用し、構築・表示確認・削除確認まで完了しました。
 
-Backend最小APIとして、API Gateway HTTP API + Lambda + CloudWatch Logs を追加します。
+Backend最小APIとして、API Gateway HTTP API + Lambda + DynamoDB + CloudWatch Logs を追加します。
 
-DynamoDB履歴保存、OpenAI API連携、Amazon Bedrock連携は後続Issueで検討します。
+OpenAI API連携、Amazon Bedrock連携は後続Issueで検討します。
 
 AWS実務経験を過度に盛らず、以下のように説明します。
 
 ```text
 AWS SAAで学習した内容をもとに、個人開発のローカルMVPを低コストなAWS構成へ段階的に展開しています。
 S3 + CloudFrontによる静的Frontend配信をCDKで構築し、料金見積もり、Budgets、削除手順、既存AWS環境との分離を含めて確認しました。
-Backend APIはMock生成APIのみAWS化し、履歴保存と実LLM連携は後続検討です。
+Backend APIはMock生成APIとDynamoDB履歴保存APIをAWS化し、実LLM連携は後続検討です。
 ```
 
 ## 13. 次アクション
@@ -213,10 +213,11 @@ Phase 2のBackend最小APIでは、以下のサービスを利用する。
 ```text
 API Gateway HTTP API
 Lambda
+DynamoDB
 CloudWatch Logs
 ```
 
-DynamoDBは今回利用しない。履歴保存をAWS化する後続タスクで改めて見積もる。
+DynamoDBはオンデマンド課金で利用する。履歴保存件数が増える場合は、読み書き回数と保存容量を改めて見積もる。
 
 現時点の料金見積もりでは、Frontend配信とServerless Backend比較用を単純合算した場合、低頻度利用であれば月額は小さく収まる想定である。
 
@@ -233,6 +234,8 @@ Backend最小API：$0.15 USD / 月 程度
 - Lambdaの実行回数
 - Lambdaのメモリサイズ
 - Lambdaの実行時間
+- DynamoDBの読み書き回数
+- DynamoDBの保存容量
 - CloudWatch Logsのログ取り込み量
 - CloudWatch Logsの保存期間
 - データ転送量
@@ -284,9 +287,18 @@ Backend処理にはPython Lambdaを利用する。
 
 ## DynamoDB
 
-今回のBackend最小APIではDynamoDBを利用しない。
+DynamoDBは生成履歴保存に利用する。
 
-履歴保存をAWS化する場合は、DynamoDBオンデマンドの読み書き回数、保存容量、削除時の履歴データ消失、TTL、バックアップ方針を後続タスクで見積もる。
+初期方針は以下。
+
+| 項目 | 方針 |
+|---|---|
+| 課金方式 | オンデマンド |
+| partition key | `history_id` |
+| 削除方針 | Backend Stack削除時にTableと履歴データを削除 |
+| ページネーション | 初期実装では本格対応しない |
+
+低頻度利用を前提とするが、履歴件数や仕様本文・Markdownの保存量が増える場合は、読み書き回数、保存容量、TTL、バックアップ方針を再確認する。
 
 ---
 
@@ -342,7 +354,7 @@ Backend Serverless構成で注意する料金リスクは以下。
 |---|---|---|
 | APIリクエスト増加 | 外部から大量アクセスされる | 初期は公開範囲・CORS・利用導線を限定する |
 | Lambda実行時間増加 | 処理が重くなる | タイムアウトを短めに設定し、不要処理を避ける |
-| DynamoDB保存量増加 | 後続で履歴保存を追加した場合に保存量が増える | 今回はDynamoDB未使用。追加時に保存件数の運用方針を検討する |
+| DynamoDB保存量増加 | 履歴保存件数や保存テキスト量が増える | 初期は低頻度利用とし、必要に応じて保存件数、TTL、削除方針を検討する |
 | CloudWatch Logs増加 | 本文や生成結果をログ出力する | ログ出力を最小化し、保持期間7日にする |
 | 削除漏れ | API Gateway / Lambda / DynamoDB / Logsが残る | `docs/aws-destroy.md` に削除確認手順を明記する |
 
