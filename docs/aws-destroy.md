@@ -2,322 +2,326 @@
 
 ## 1. 目的
 
-このドキュメントは、AIテスト設計支援ツールの Phase 2：AWS低コスト版で作成するAWSリソースの削除手順を整理するためのものです。
+このドキュメントは、AIテスト設計支援ツールの Phase 2：AWS低コスト版における、S3 + CloudFront Frontend静的配信用リソースの削除手順を整理するためのものです。
 
-Phase 2では、既存のプライベート用VPC/EC2と同一AWSアカウントを使用します。
-
-そのため、削除手順では、本プロジェクト用リソースのみを削除対象とし、既存プライベート用VPC/EC2を誤って変更・削除しないことを最優先とします。
+Issue #23では、S3 + CloudFront構成を作成し、CloudFront URLで画面表示を確認した後、対象S3 Bucketの中身を手動削除し、`pnpm cdk destroy` による削除まで確認しました。
 
 ## 2. 関連Issue
 
 - GitHub Issue: #22 AWSデプロイ・削除手順
+- GitHub Issue: #23 S3 CloudFront Frontend配信
 
 ## 3. 前提
 
-Phase 2初期では、以下の構成を最初のAWS実装対象とします。
+- Windows / PowerShellで作業する
+- AWS CLI v2 が利用できる
+- AWS CDK が利用できる
+- リージョンは `ap-northeast-1` を使用する
+- AWS認証情報がローカルに設定済みである
+- 削除対象は本プロジェクト用CDK Stackのみとする
+- AWSアカウントID、S3 Bucket名、CloudFront Distribution IDなどの実値はREADME/docsへ記載しない
 
-```text
-S3 + CloudFront による Frontend 静的配信
-```
+## 4. 削除対象
 
-本ドキュメントでは、まず以下の削除手順を対象とします。
+削除対象は、CDK Stack `AiTestDesignSupportFrontendStack` に含まれる以下です。
 
 - S3 Bucket
-- S3 Object
-- CloudFront Distribution
+- S3 Bucket Policy
 - CloudFront Origin Access Control
-- CloudWatch Logs
-- CDK Stack
-- IAM Role / Policy
+- CloudFront Distribution
+- CloudFormation Outputs
 
-API Gateway、Lambda、DynamoDBは、Phase 2後続で作成した場合に削除対象へ追加します。
-
-## 4. 重要な分離方針
-
-本プロジェクトでは、既存のプライベート用VPC/EC2と同一AWSアカウントを使用します。
-
-ただし、既存環境との混同や誤削除を防ぐため、AIテスト設計支援ツール用リソースは以下の方針で分離します。
-
-- 既存プライベートVPCは使用しない
-- 既存EC2へ同居デプロイしない
-- 既存Security Groupを流用しない
-- 既存IAM Roleを安易に流用しない
-- 既存Route 53設定を安易に変更しない
-- リソース名には `ai-test-design-support` を含める
-- タグ `Project=ai-test-design-support` を付与する
-- 削除手順では、本プロジェクト用リソースのみを削除対象にする
-
-AWSアカウントID、VPC ID、EC2 ID、IPアドレス、IAMアクセスキー等は、このドキュメントには記載しません。
-
-## 5. 削除対象の判定基準
-
-削除対象は、以下のいずれかに該当する本プロジェクト用リソースに限定します。
-
-```text
-リソース名に ai-test-design-support を含む
-```
-
-または
-
-```text
-タグ Project=ai-test-design-support が付与されている
-```
-
-または
-
-```text
-CDK Stack名が本プロジェクト用である
-```
+## 5. 削除対象外
 
 以下は削除対象に含めません。
 
-- 既存プライベート用VPC
-- 既存プライベート用EC2
+- 既存VPC
+- 既存EC2
 - 既存Security Group
 - 既存IAM Role
-- 既存Route 53 Hosted Zone
-- 既存Elastic IP
-- 既存Key Pair
-- 本プロジェクトと無関係なS3 Bucket
-- 本プロジェクトと無関係なCloudFront Distribution
+- 既存Route 53設定
+- 本プロジェクト以外のS3 Bucket
+- 本プロジェクト以外のCloudFront Distribution
+- 本プロジェクト以外のCloudFormation Stack
+
+CDK bootstrapにより作成される `CDKToolkit` Stackは、CDK管理用リソースです。  
+アプリケーション本体の `AiTestDesignSupportFrontendStack` とは別に扱います。
 
 ## 6. 削除前チェック
 
-削除作業前に、以下を確認します。
+削除前に以下を確認します。
 
-```text
-- 作業対象AWSアカウントが想定どおりである
-- 作業リージョンが想定どおりである
-- 削除対象リソース名に ai-test-design-support が含まれている
-- 削除対象リソースに Project=ai-test-design-support タグがある
-- 既存VPC/EC2が削除対象に含まれていない
-- S3 Bucket名が本プロジェクト用である
-- CloudFront DistributionのOriginが本プロジェクト用S3 Bucketである
-- CDK Stack名が本プロジェクト用である
-```
+- 削除対象Stack名が `AiTestDesignSupportFrontendStack` である
+- 対象S3 BucketがCloudFormation Output `FrontendBucketName` から取得したものである
+- 対象CloudFront DistributionがCloudFormation Output `CloudFrontDistributionId` から取得したものである
+- 既存VPC / EC2 / Security Group / Route 53が削除対象に含まれていない
+- 本プロジェクト以外のS3 Bucketを指定していない
 
-## 7. 削除順序
-
-Phase 2初期のS3 + CloudFront構成では、以下の順で削除します。
-
-```text
-1. CloudFront DistributionをDisableする
-2. CloudFront DistributionがDisabledになるまで待つ
-3. CloudFront DistributionをDeleteする
-4. CloudFront Origin Access Controlを削除する
-5. S3 Bucket内のObjectを削除する
-6. S3 Bucketを削除する
-7. CloudWatch Logsが残っていないか確認する
-8. CDK Stackが残っていないか確認する
-9. Billing / Cost Explorerで課金状況を確認する
-```
-
-CDKで構築している場合は、原則として本プロジェクト用Stackを対象に `cdk destroy` を使用します。
-
-ただし、`cdk destroy` 実行前に、対象Stack名と削除対象リソースを必ず確認します。
-
-## 8. CloudFront Distribution削除手順
-
-### 8.1 対象確認
-
-CloudFront Distributionを削除する前に、以下を確認します。
-
-```text
-- DistributionのCommentまたはTagが本プロジェクト用である
-- Originが本プロジェクト用S3 Bucketである
-- 既存プライベート用サーバや既存ドメイン向けのDistributionではない
-```
-
-### 8.2 Disable
-
-CloudFront Distributionは、削除前にDisableします。
-
-```text
-CloudFront
-↓
-Distributions
-↓
-対象Distributionを選択
-↓
-Disable
-```
-
-Disable後、Distributionの状態が反映されるまで待ちます。
-
-### 8.3 Delete
-
-DistributionがDisabledになったら、対象を再確認してDeleteします。
-
-削除後は復元できないため、以下を再確認します。
-
-```text
-- Distribution IDが本プロジェクト用である
-- Originが本プロジェクト用S3 Bucketである
-- 既存プライベート環境向けDistributionではない
-```
-
-## 9. S3 Bucket削除手順
-
-### 9.1 対象確認
-
-S3 Bucketを削除する前に、以下を確認します。
-
-```text
-- Bucket名に ai-test-design-support が含まれている
-- 本プロジェクト用Frontend build成果物の配置先である
-- 既存プライベート用途のBucketではない
-- 重要なバックアップデータを含んでいない
-```
-
-### 9.2 Object削除
-
-S3 Bucketは、中身が残っていると削除できません。
-
-そのため、先にBucket内のObjectを削除します。
-
-```text
-S3
-↓
-Buckets
-↓
-対象Bucketを選択
-↓
-Objects
-↓
-全Objectを削除
-```
-
-### 9.3 Bucket削除
-
-Object削除後、Bucketを削除します。
-
-```text
-S3
-↓
-Buckets
-↓
-対象Bucketを選択
-↓
-Delete
-```
-
-削除時は、Bucket名を再確認します。
-
-## 10. CloudWatch Logs確認
-
-Phase 2初期のS3 + CloudFront構成では、CloudWatch Logsの利用は限定的です。
-
-ただし、後続でAPI Gateway / Lambdaを追加した場合、CloudWatch LogsのLog Groupが作成される可能性があります。
-
-確認対象例：
-
-```text
-/aws/lambda/ai-test-design-support-*
-API-Gateway-Execution-Logs_*
-```
-
-CloudWatch Logsを使う場合、保持期間は7日を初期方針とします。
-
-削除時は、以下を確認します。
-
-```text
-- 本プロジェクト用Log Groupが残っていないか
-- 保持期間が無期限になっていないか
-- 不要なLog Groupが残っていないか
-```
-
-## 11. IAM Role / Policy確認
-
-CDKやAWSサービスによってIAM Role / Policyが作成された場合、以下を確認します。
-
-```text
-- Role名に ai-test-design-support が含まれている
-- CDK Stackによって作成されたRoleである
-- 既存プライベート環境で使っているRoleではない
-```
-
-既存IAM Roleを削除対象に含めません。
-
-## 12. CDK Stack削除手順
-
-CDKを使う場合、削除前にStack名を確認します。
+## 7. 対象S3 Bucket名を取得
 
 ```powershell
-cdk list
+$bucketName = aws cloudformation describe-stacks `
+  --stack-name AiTestDesignSupportFrontendStack `
+  --region ap-northeast-1 `
+  --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" `
+  --output text
+
+Write-Host $bucketName
 ```
 
-対象Stackが本プロジェクト用であることを確認してから削除します。
+プロファイル指定ありの場合は以下です。
 
 ```powershell
-cdk destroy <本プロジェクト用Stack名>
+$bucketName = aws cloudformation describe-stacks `
+  --stack-name AiTestDesignSupportFrontendStack `
+  --region ap-northeast-1 `
+  --profile <YOUR_PROFILE> `
+  --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" `
+  --output text
+
+Write-Host $bucketName
 ```
 
-削除前に確認すること：
+実値をREADME/docs/GitHub Issueへ記載しません。
 
-```text
-- Stack名が本プロジェクト用である
-- 削除対象リソースが本プロジェクト用である
-- 既存VPC/EC2が削除対象に含まれていない
+## 8. 対象S3 Bucketの中身を確認
+
+```powershell
+aws s3 ls "s3://$bucketName/" --recursive
+```
+
+プロファイル指定ありの場合は以下です。
+
+```powershell
+aws s3 ls "s3://$bucketName/" --recursive --profile <YOUR_PROFILE>
+```
+
+## 9. 対象S3 Bucketの中身を削除
+
+このプロジェクトでは、初期構成をシンプルに保つため、`autoDeleteObjects: true` は使用しません。  
+`cdk destroy` 前に、対象S3 Bucketの中身を手動で削除します。
+
+```powershell
+aws s3 rm "s3://$bucketName/" --recursive
+```
+
+プロファイル指定ありの場合は以下です。
+
+```powershell
+aws s3 rm "s3://$bucketName/" --recursive --profile <YOUR_PROFILE>
+```
+
+## 10. 空になったことを確認
+
+```powershell
+aws s3 ls "s3://$bucketName/" --recursive
+```
+
+出力がなければ空です。
+
+## 11. CDK destroy
+
+```powershell
+cd infra
+pnpm cdk destroy
+```
+
+プロファイル指定ありの場合は以下です。
+
+```powershell
+pnpm cdk destroy --profile <YOUR_PROFILE>
+```
+
+確認プロンプトが表示された場合は、削除対象Stackが `AiTestDesignSupportFrontendStack` であることを確認してから続行します。
+
+## 12. 削除確認
+
+CloudFormation Stackの削除状態を確認します。
+
+```powershell
+aws cloudformation describe-stacks `
+  --stack-name AiTestDesignSupportFrontendStack `
+  --region ap-northeast-1
+```
+
+Stack削除後は、Stackが存在しない旨のエラーになる場合があります。  
+その場合、`AiTestDesignSupportFrontendStack` は削除済みと判断できます。
+
+プロファイル指定ありの場合は以下です。
+
+```powershell
+aws cloudformation describe-stacks `
+  --stack-name AiTestDesignSupportFrontendStack `
+  --region ap-northeast-1 `
+  --profile <YOUR_PROFILE>
 ```
 
 ## 13. 削除後チェック
 
-削除後、以下を確認します。
+削除後に以下を確認します。
+
+- `AiTestDesignSupportFrontendStack` が削除済みである
+- 対象S3 Bucketが削除済みである
+- 対象CloudFront Distributionが削除済みである
+- 既存VPC / EC2 / Security Group / Route 53に影響していない
+- 本プロジェクト以外のS3 Bucketを削除していない
+
+## 14. 手動削除を採用する理由
+
+`autoDeleteObjects: true` を使用すると、S3 Bucket削除時にオブジェクトを削除するためのCDK管理カスタムリソースが追加されます。  
+その場合、Lambda、IAM Role、IAM Policy、Custom Resourceなどが増える可能性があります。
+
+Issue #23では、S3 + CloudFront構成を小さく保つことを優先し、以下の方針を採用します。
 
 ```text
-- 本プロジェクト用CloudFront Distributionが残っていない
-- 本プロジェクト用S3 Bucketが残っていない
-- 本プロジェクト用CloudWatch Logsが残っていない
-- 本プロジェクト用CDK Stackが残っていない
-- 既存プライベート用VPC/EC2に変更がない
-- Billing / Cost Explorerで想定外の課金が増えていない
+autoDeleteObjects: false
+cdk destroy 前に対象S3 Bucketの中身を手動削除
 ```
 
-## 14. 削除対象外リスト
+## Backend Serverless構成の削除方針
 
-以下は削除対象外です。
-
-| 対象 | 理由 |
-|---|---|
-| 既存プライベート用VPC | 本プロジェクトでは使用しない |
-| 既存プライベート用EC2 | 本プロジェクトでは同居デプロイしない |
-| 既存Security Group | 既存サーバ運用に影響する可能性がある |
-| 既存IAM Role | 権限管理の混同を避ける |
-| 既存Route 53設定 | 既存サービス影響を避ける |
-| 既存Elastic IP | 既存サーバ影響を避ける |
-| 既存Key Pair | 本プロジェクトでは使用しない |
-
-## 15. READMEへ反映する内容
-
-READMEには、詳細手順ではなく以下を要約して記載します。
+Backend Serverless構成を実装した場合、以下のリソースが削除対象になる。
 
 ```text
-AWSリソースを作成する場合は、デプロイ手順だけでなく削除手順もdocsに記載します。
-既存プライベート用VPC/EC2と同一AWSアカウントを使用しますが、本プロジェクト用リソースは命名・タグ・Stack名で分離し、削除手順では本プロジェクト用リソースのみを対象にします。
+API Gateway HTTP API
+Lambda
+DynamoDB Table
+CloudWatch Logs Log Group
+IAM Role / Policy
 ```
 
-## 16. 現時点の結論
+現時点ではBackend Serverless構成は未実装であるため、本章は削除方針の整理であり、具体的な削除コマンドはBackend実装後に確定する。
 
-Phase 2初期では、AWSリソース作成前に削除手順を明確化します。
+---
 
-最初のAWS実装対象は以下です。
+## 削除対象の確認方針
+
+削除前に、必ず対象が本プロジェクト用リソースであることを確認する。
+
+確認する観点は以下。
+
+- Stack名に `AiTestDesignSupport` または本プロジェクト用の命名が含まれていること
+- リソース名に `ai-test-design-support` が含まれていること
+- 可能な範囲で `Project=ai-test-design-support` タグが付与されていること
+- 既存プライベート環境のVPC / EC2 / Security Group / Route 53 が削除対象に含まれていないこと
+- AWSアカウントID、VPC ID、EC2 ID、IPアドレスなどをdocsへ記載していないこと
+
+---
+
+## DynamoDB削除時の注意
+
+Backend Serverless構成では、生成履歴をDynamoDBへ保存する想定である。
+
+DynamoDBテーブルを削除すると、保存済みの生成履歴は削除される。
+
+削除前に以下を確認する。
+
+- [ ] 削除対象テーブルが本プロジェクト用である
+- [ ] テーブル名に `ai-test-design-support` が含まれている
+- [ ] 保存済み履歴が消えて問題ない
+- [ ] 必要な検証結果や画面キャプチャは別途保存済みである
+- [ ] 実案件情報・顧客情報・業務機密を保存していない
+
+想定テーブル名：
 
 ```text
-S3 + CloudFront による Frontend 静的配信
+ai-test-design-support-histories
 ```
 
-ただし、実装前に以下を満たす必要があります。
+---
+
+## CloudWatch Logs削除時の注意
+
+Lambdaを作成すると、CloudWatch Logsにロググループが作成される。
+
+初期方針では、ログ保持期間を7日に設定する。
+
+削除時は以下を確認する。
+
+- [ ] Lambda用ロググループが本プロジェクト用である
+- [ ] ログ保持期間が7日になっている
+- [ ] 不要なロググループが残っていない
+- [ ] ログに仕様本文、Markdown全文、APIキー、認証情報、AWS識別子、個人情報、顧客情報、業務機密が出力されていない
+
+---
+
+## 削除対象に含めないもの
+
+以下は本プロジェクトのBackend Serverless構成では使用しないため、削除対象に含めない。
+
+- 既存VPC
+- 既存EC2
+- 既存Security Group
+- 既存IAM Role
+- 既存Route 53設定
+- 既存プライベート環境のリソース
+- NAT Gateway
+- ALB
+- RDS
+- ECS Fargate
+
+本プロジェクト用に作成していないリソースを削除対象に含めない。
+
+---
+
+## Backend Stack削除前チェック
+
+Backend Stackを削除する前に、以下を確認する。
+
+- [ ] 削除対象Stack名が本プロジェクト用である
+- [ ] API Gatewayが本プロジェクト用である
+- [ ] Lambdaが本プロジェクト用である
+- [ ] DynamoDBテーブルが本プロジェクト用である
+- [ ] CloudWatch Logsロググループが本プロジェクト用である
+- [ ] IAM Role / Policyが本プロジェクト用である
+- [ ] 既存VPC / EC2 / Security Group / Route 53が対象に含まれていない
+- [ ] DynamoDB履歴データが削除されても問題ない
+- [ ] `.env`、AWS認証情報、APIキー、DBファイルがGit管理対象に含まれていない
+- [ ] README / docsにAWSアカウントID、VPC ID、EC2 ID、IPアドレス、IAM認証情報を記載していない
+
+---
+
+## 削除手順の詳細化タイミング
+
+具体的な削除コマンドは、Backend Stack実装後に確定する。
+
+現時点では、以下を方針として残す。
 
 ```text
-- 削除対象が本プロジェクト用リソースに限定されている
-- 既存VPC/EC2を削除対象に含めない
-- CloudFront Distribution削除手順が明確である
-- S3 Bucket削除手順が明確である
-- 削除後の課金確認手順がある
+Backend Stackを作成した場合は、Frontend Stackとは分けて削除できるようにする。
+削除手順では、本プロジェクト用Stackと本プロジェクト用リソースのみを対象にする。
+DynamoDBテーブル削除による履歴データ消失を明記する。
+CloudWatch Logsロググループの保持期間と削除漏れを確認する。
 ```
+
+## 15. 注意事項
+
+削除コマンドでは、必ずCloudFormation Outputから取得した本プロジェクト用S3 Bucket名を使用します。
+
+手入力で別バケットを指定すると、別用途のS3 Bucketを削除するリスクがあります。
+
+以下はREADME/docs/GitHub Issueへ記載しません。
+
+- AWSアカウントID
+- IAM ARN
+- 実S3 Bucket名
+- CloudFront Distribution ID
+- CloudFront DomainName
+- VPC ID
+- EC2 ID
+- IPアドレス
+
+## 16. 実施結果
+
+Issue #23では、以下を確認済みです。
+
+- 対象S3 Bucketの中身を手動削除
+- `pnpm cdk destroy` 成功
+- 本プロジェクト用S3 + CloudFront構成の削除確認
+- 既存VPC / EC2 / Security Group / Route 53を使用・変更していないことの確認
 
 ## 17. 次アクション
 
-- `docs/aws-deploy.md` の初版を作成する
-- `docs/aws-destroy.md` と `docs/aws-deploy.md` の整合を確認する
-- 後続Issue `[AWS] S3 CloudFront Frontend配信` に進む
+- READMEへ削除確認済みであることを反映する
+- Issue #23 closeコメントへ削除確認結果を記載する
+- 後続のBackend AWS化時も、デプロイ手順と削除手順をセットで整備する

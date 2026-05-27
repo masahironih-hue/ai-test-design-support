@@ -108,6 +108,28 @@ http://localhost:3000
 
 ---
 
+
+## 静的export
+
+AWS S3 + CloudFront 配信用に、Next.js の静的exportを行います。
+
+```powershell
+pnpm build
+```
+
+`next.config.ts` で `output: "export"` を設定しているため、build後に `out/` が生成されます。
+
+```powershell
+Test-Path .\out
+Get-ChildItem .\out
+```
+
+`out/` はビルド成果物のため、Git管理対象には含めません。
+
+CloudFront配信環境では、Backend APIはまだAWS化していないため、画面表示は確認できますが、生成API・履歴APIを利用するにはローカルBackendまたは後続のAWS Backend構成が必要です。
+
+---
+
 ## Backend API 接続確認
 
 Frontend の仕様入力フォームから、Backend の `POST /test-designs/generate` API を呼び出し、生成結果を画面表示できることを確認します。

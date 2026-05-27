@@ -2,489 +2,106 @@
 
 ## 1. 目的
 
-このドキュメントは、AIテスト設計支援ツールの Phase 2：AWS低コスト版における、AWS構成候補・料金見積もり前提・コスト制御方針を整理するためのメモです。
+このドキュメントは、AIテスト設計支援ツールの Phase 2：AWS低コスト版におけるAWS利用料の概算、低コスト構成候補、コスト制御方針を整理するためのものです。
 
-Phase 2では、ローカルMVPを本格的な本番運用環境へ移行するのではなく、AWS SAAで学習した内容を個人開発に落とし込み、低コストで説明可能なAWS構成を作ることを目的とします。
-
-このドキュメントでは、AWSリソース作成やデプロイ作業は扱いません。
+AWS利用料は個人負担であるため、最初から高コスト構成にせず、低コスト・削除容易性・説明しやすさを優先します。
 
 ## 2. 関連Issue
 
 - GitHub Issue: #20 AWS低コスト構成・料金見積もり
+- GitHub Issue: #21 AWS Budgets・コスト制御設定
+- GitHub Issue: #22 AWSデプロイ・削除手順
+- GitHub Issue: #23 S3 CloudFront Frontend配信
 
 ## 3. 現在の前提
 
-Phase 1：ローカルMVPでは、以下の一連の流れがローカル環境で動作確認済みです。
+Phase 0：進め方・環境構築は完了済みです。  
+Phase 1：ローカルMVPも完了済みです。
 
-```text
-仕様入力
-↓
-LLM Mockによるテスト観点生成
-↓
-生成結果表示
-↓
-Markdownコピー
-↓
-SQLite履歴保存
-↓
-履歴一覧表示
-↓
-履歴詳細表示
-↓
-保存済みMarkdownコピー
-```
+Phase 1では、以下を実装済みです。
 
-Phase 2では、まず以下を整理します。
+- FastAPI Backend
+- LLM Mock API
+- SQLite履歴保存
+- Next.js / React / TypeScript Frontend
+- 仕様入力フォーム
+- 生成結果表示
+- Markdownコピー
+- 履歴一覧
+- 履歴詳細
+- README / docs整備
+- 画面キャプチャ作成
 
-- AWS低コスト構成候補
-- AWS利用料の概算
-- AWS Pricing Calculatorで確認する前提
-- AWS Budgets設定方針
-- CloudWatch Logs保持期間の方針
-- 避けるべき高コストサービス
-- 削除手順の方針
-- 既存AWS環境との分離方針
+Phase 2では、まずAWS低コスト版としてS3 + CloudFrontによるFrontend静的配信を検証しました。
 
 ## 4. 既存AWS環境との分離前提
 
 本プロジェクトでは、既存のプライベート用VPC/EC2と同一AWSアカウントを使用します。
 
-ただし、既存環境との混同や誤削除を防ぐため、AIテスト設計支援ツール用リソースは以下の方針で分離します。
+ただし、本プロジェクト用リソースは以下の方針で分離します。
 
-- 既存プライベートVPCは使用しない
-- 既存EC2へ同居デプロイしない
-- 既存Security Group、IAM Role、Route 53設定を安易に流用しない
-- リソース名には `ai-test-design-support` を含める
-- タグ `Project=ai-test-design-support` を付与する
-- 初期環境は `Environment=dev` または `Environment=portfolio` とする
-- CDKを使う場合はStack名で既存環境と明確に分離する
-- 削除手順では、本プロジェクト用リソースのみを削除対象にする
-
-AWSアカウントID、VPC ID、EC2 ID、IPアドレス、IAMアクセスキー等は、README、docs、GitHub Issueには記載しません。
+- 既存VPCを使用しない
+- 既存EC2を使用しない
+- 既存Security Groupを使用しない
+- 既存IAM Roleを安易に流用しない
+- 既存Route 53設定を変更しない
+- 本プロジェクト用リソースには `ai-test-design-support` を含む命名を行う
+- 可能な範囲で `Project=ai-test-design-support` タグを付与する
+- 削除対象は本プロジェクト用リソースのみに限定する
+- AWSアカウントID、VPC ID、EC2 ID、IPアドレス、IAM情報はREADME/docsへ記載しない
 
 ## 5. 想定利用量
 
-個人開発ポートフォリオ用途のため、本格的なSaaS運用や多数ユーザー利用は想定しません。
+個人開発ポートフォリオとして、以下の低トラフィック前提で見積もります。
 
-| 項目 | 想定 |
+| 項目 | 前提 |
 |---|---|
-| 利用目的 | README確認、面談デモ、個人検証 |
-| 月間アクセス数 | 100〜1,000程度 |
-| 月間APIリクエスト数 | 100〜1,000程度 |
-| 履歴データ件数 | 100〜1,000件程度 |
-| 保存データ量 | 1GB未満 |
-| CloudWatch Logs | 少量 |
-| LLM API利用 | Phase 2初期では対象外 |
-| リージョン候補 | `ap-northeast-1` |
-
-料金はAWSの最新条件に依存するため、最終的な金額はAWS Pricing Calculatorで確認します。
-
-## 6. 構成候補
-
-### 6.1 候補A：FrontendのみAWS配信
-
-```text
-Frontend build
-↓
-S3
-↓
-CloudFront
-```
-
-#### 対象サービス
-
-- Amazon S3
-- Amazon CloudFront
-
-#### 評価
-
-| 観点 | 評価 |
-|---|---|
-| コスト | 低い |
-| 実装難易度 | 低い |
-| 既存VPC/EC2との分離 | しやすい |
-| 削除手順 | 比較的単純 |
-| ポートフォリオ説明価値 | あり |
-| Backend AWS化 | まだ行わない |
-
-#### コメント
-
-Phase 2初期の第一歩として最も現実的です。
-
-S3 + CloudFront は既存VPC/EC2に触れずに構成できるため、同一AWSアカウント内でも既存プライベート環境と混同しにくいです。
-
-ただし、Backendは引き続きローカルまたは別フェーズ扱いとなるため、完全なAWS化ではありません。
-
-### 6.2 候補B：Frontend + Serverless Backend
-
-```text
-Frontend
-  ↓
-S3 + CloudFront
-
-Backend API
-  ↓
-API Gateway + Lambda
-
-履歴保存
-  ↓
-DynamoDB
-```
-
-#### 対象サービス
-
-- Amazon S3
-- Amazon CloudFront
-- Amazon API Gateway
-- AWS Lambda
-- Amazon DynamoDB
-- Amazon CloudWatch Logs
-
-#### 評価
-
-| 観点 | 評価 |
-|---|---|
-| コスト | 低〜中 |
-| 実装難易度 | 中 |
-| 既存VPC/EC2との分離 | しやすいが設計が必要 |
-| 削除手順 | 対象リソースが増える |
-| ポートフォリオ説明価値 | 高い |
-| Backend AWS化 | 可能 |
-
-#### コメント
-
-常時稼働リソースを避けられるため、個人開発向けのAWS構成として有力です。
-
-ただし、FastAPI構成をLambdaで動かすための調整、API Gatewayとの接続、SQLiteからDynamoDBへの保存方式変更が必要になります。
-
-Phase 2初期で一気に実装すると作業量が大きいため、候補Aの後続として検討します。
-
-### 6.3 候補C：実務寄り構成
-
-```text
-CloudFront
-↓
-ALB
-↓
-ECS Fargate
-↓
-RDS PostgreSQL
-```
-
-#### 対象サービス
-
-- Amazon CloudFront
-- Application Load Balancer
-- Amazon ECS Fargate
-- Amazon RDS
-- Amazon CloudWatch Logs
-
-#### 評価
-
-| 観点 | 評価 |
-|---|---|
-| コスト | 高くなりやすい |
-| 実装難易度 | 高い |
-| 既存VPC/EC2との分離 | VPC設計が必要 |
-| 削除手順 | 複雑 |
-| ポートフォリオ説明価値 | 高い |
-| Phase 2初期採用 | しない |
-
-#### コメント
-
-実務寄りの構成としては説明価値があります。
-
-一方で、ALB、ECS Fargate、RDSは個人開発ではコストと運用負荷が高くなりやすいため、Phase 2初期では採用しません。
-
-Phase 3以降で、AWS実務寄り構成を検討する段階になったら再評価します。
-
-## 7. Phase 2初期の推奨構成
-
-Phase 2初期では、以下の順で進めます。
-
-```text
-1. AWS低コスト構成・料金見積もり
-2. AWS構成docs作成
-3. AWS Budgets・コスト制御方針整理
-4. S3 + CloudFrontによるFrontend配信
-5. 削除手順整備
-6. READMEへのAWS構成概要反映
-```
-
-初期実装対象は、候補Aの **S3 + CloudFrontによるFrontend配信** とします。
-
-理由は以下です。
-
-- 低コストで始めやすい
-- 既存VPC/EC2に触れずに進められる
-- 同一AWSアカウント内でもリソース分離しやすい
-- 削除対象を限定しやすい
-- READMEや面談で説明しやすい
-- Backend AWS化より先にAWSデプロイ成功体験を得られる
-
-## 8. AWS Pricing Calculatorで確認する項目
-
-### 8.1 S3
-
-確認項目：
-
-- ストレージ容量
-- ストレージクラス
-- PUTリクエスト数
-- GETリクエスト数
-- データ転送量
-- 不要ファイル削除方針
-
-初期前提：
-
-| 項目 | 値 |
-|---|---|
-| ストレージクラス | S3 Standard |
-| 保存容量 | 1GB未満 |
-| 主な用途 | Frontend build成果物の配置 |
-| 備考 | 不要なbuild成果物を残し続けない |
-
-### 8.2 CloudFront
-
-確認項目：
-
-- データ転送量
-- リクエスト数
-- キャッシュ利用
-- 価格クラス
-- 無料枠またはFree Tier条件
-- S3オリジンとの組み合わせ
-
-初期前提：
-
-| 項目 | 値 |
-|---|---|
-| 月間アクセス | 100〜1,000程度 |
+| 利用者 | 主に本人、面談・ポートフォリオ閲覧者 |
+| アクセス数 | 少量 |
 | データ転送量 | 少量 |
-| 用途 | 静的Frontend配信 |
-| 備考 | WAFは初期では含めない |
+| 保存データ | サンプル仕様・生成結果中心 |
+| 可用性要件 | 本番SaaSほど高くしない |
+| コスト優先度 | 高い |
 
-### 8.3 API Gateway
+## 6. AWS Pricing Calculator確認結果
 
-確認項目：
-
-- HTTP API / REST API の違い
-- リクエスト数
-- 認証有無
-- CloudWatch Logs出力有無
-
-初期方針：
-
-| 項目 | 方針 |
-|---|---|
-| API種別 | 後続でHTTP API優先候補 |
-| Phase 2初期 | 見積もり対象として確認のみ |
-| 実装 | S3 + CloudFront後に検討 |
-
-### 8.4 Lambda
-
-確認項目：
-
-- 月間リクエスト数
-- 実行時間
-- メモリサイズ
-- タイムアウト
-- CloudWatch Logs出力量
-
-初期方針：
-
-| 項目 | 方針 |
-|---|---|
-| 用途 | Backend API候補 |
-| Phase 2初期 | 見積もり対象として確認のみ |
-| 実装 | 後続で検討 |
-
-### 8.5 DynamoDB
-
-確認項目：
-
-- オンデマンド / プロビジョンド
-- 読み込みリクエスト数
-- 書き込みリクエスト数
-- ストレージ容量
-- GSIの有無
-- TTLの利用有無
-
-初期方針：
-
-| 項目 | 方針 |
-|---|---|
-| 用途 | 履歴保存候補 |
-| Phase 2初期 | 見積もり対象として確認のみ |
-| 実装 | Backend AWS化時に検討 |
-
-### 8.6 CloudWatch Logs
-
-確認項目：
-
-- ログ取り込み量
-- ログ保存量
-- ログ保持期間
-- 不要ログ削除方針
-
-初期方針：
-
-| 項目 | 方針 |
-|---|---|
-| 保持期間 | 7日を初期候補 |
-| 用途 | Lambda / API Gateway導入後の確認 |
-| 備考 | 無期限保持は避ける |
-
-### 8.7 AWS Budgets
-
-確認項目：
-
-- 月額予算
-- アラート閾値
-- 通知先
-- 既存プライベートサーバ費用との見分け方
-
-初期方針：
-
-| 項目 | 方針 |
-|---|---|
-| Budget種別 | Cost budget |
-| 月額予算 | 500円〜1,000円相当を初期候補 |
-| アラート | 50%、80%、100% |
-| 通知 | メール通知 |
-| 備考 | 既存AWS環境の費用と混同しないように確認する |
-
-## 9. 低コスト観点で初期回避するサービス
-
-Phase 2初期では、以下を原則として採用しません。
-
-| サービス / 構成 | 回避理由 |
-|---|---|
-| NAT Gateway | 常時課金になりやすい |
-| ALB | 常時稼働コストが発生しやすい |
-| RDS | 個人開発初期では継続課金・削除漏れリスクがある |
-| ECS Fargate | 実務寄りだが初期には構成が重い |
-| EKS | 個人開発初期として過剰 |
-| WAF | 初期デモ用途では優先度が低い |
-| EC2常時起動 | 既存プライベートEC2との混同リスクがある |
-| Bedrock / OpenAI API無制限利用 | API料金とキー管理が必要 |
-
-## 10. コスト管理方針
-
-Phase 2では、AWSリソース作成前に以下を確認します。
-
-- AWS Pricing Calculatorで見積もり前提を確認する
-- AWS Budgetsを設定する
-- 既存プライベートサーバ費用と、本プロジェクト追加費用を分けて確認する
-- CloudWatch Logs保持期間を短くする
-- 不要なS3オブジェクトを残さない
-- 削除手順をdocsに明記する
-- READMEに料金注意事項を記載する
-
-## 11. 削除手順方針
-
-Phase 2では、デプロイ手順だけでなく削除手順も整備します。
-
-削除手順では、以下を明記します。
-
-- 削除対象は `Project=ai-test-design-support` のリソースに限定する
-- 既存VPC/EC2を削除対象に含めない
-- S3 Bucketは中身を空にしてから削除する
-- CloudFront Distributionは無効化してから削除する
-- CDKを使う場合は対象Stack名を確認してから `cdk destroy` を実行する
-- CloudWatch LogsのLog Groupが残っていないか確認する
-- 削除後にAWS Billing / Cost Explorerで課金状況を確認する
-
-## 12. 現時点の結論
-
-Phase 2初期では、以下の方針を採用します。
+### 6.1 見積もり作成日
 
 ```text
-AWSアカウントは既存プライベート環境と同一アカウントを使用する。
-ただし、本プロジェクト用AWSリソースは命名・タグ・Stack名・削除手順で明確に分離する。
-
-最初のAWS実装対象は、S3 + CloudFrontによるFrontend配信とする。
-Backend API、DynamoDB、CloudWatch Logsの本格利用は後続で検討する。
+2026-05-24 JST
 ```
 
-## 13. 次アクション
+### 6.2 見積もり1：S3 + CloudFront
 
-- `docs/aws-architecture.md` に、AWS Pricing Calculator確認結果とPhase 2初期の採用方針を反映する
-- `docs/aws-budget.md` を後続で作成する
-- `docs/aws-destroy.md` を後続で作成する
-- S3 + CloudFrontによるFrontend配信の実装Issueを後続で作成する
-- Backend API、DynamoDB、CloudWatch Logsの本格利用は、Frontend配信後に別Issueで検討する
+| 項目 | 内容 |
+|---|---|
+| 想定用途 | Frontend静的配信 |
+| 主なサービス | S3、CloudFront |
+| 月額概算 | `$0.19 USD` |
+| 採用判断 | Phase 2初期構成として採用 |
 
-## 14. AWS Pricing Calculator確認結果
+備考：
 
-### 14.1 見積もり作成日
+- 低アクセスの個人開発ポートフォリオ前提
+- 実際の料金はアクセス数、データ転送量、S3保存容量、リクエスト数により変動する
+- CloudFrontキャッシュ削除リクエストの使い方にも注意する
 
-- 作成日：2026年5月24日
-- 見積もり名：`ai-test-design-support-phase2-dev`
-- リージョン：`ap-northeast-1`
+### 6.3 見積もり2：Serverless Backend比較用
 
-### 14.2 見積もり1：S3 + CloudFront
+| 項目 | 内容 |
+|---|---|
+| 想定用途 | Backend API / 履歴保存の後続AWS化比較 |
+| 主なサービス | API Gateway、Lambda、DynamoDB、CloudWatch Logs |
+| 月額概算 | `$0.15 USD` |
+| 採用判断 | 後続検討 |
 
-Phase 2初期で採用候補とする、Frontend静的配信構成の見積もりです。
+備考：
 
-```text
-Frontend build
-↓
-S3
-↓
-CloudFront
-↓
-Browser
-```
+- FastAPIのLambda対応、SQLiteからDynamoDBへの保存方式変更が必要
+- CloudWatch Logs設計、ログ保持期間、削除手順の整理が必要
+- Phase 2初期ではFrontend静的配信を優先する
 
-| サービス | 月額概算 |
-|---|---:|
-| S3 | $0.00 USD |
-| CloudFront | $0.19 USD |
-| 合計 | $0.19 USD |
-
-#### 備考
-
-- 個人開発ポートフォリオ用途の小規模アクセスを前提とする
-- 既存プライベート用VPC/EC2には接続しない
-- 既存AWS環境と同一アカウント内で、命名・タグ・削除手順により分離する
-- AWSリソース作成前に、削除手順とBudgets設定方針を確認する
-
-### 14.3 見積もり2：Serverless Backend比較用
-
-後続でBackend APIをAWS化する場合の比較用見積もりです。
-
-```text
-API Gateway HTTP API
-↓
-Lambda
-↓
-DynamoDB
-
-Logs
-↓
-CloudWatch Logs
-```
-
-| サービス | 月額概算 |
-|---|---:|
-| API Gateway | $0.00 USD |
-| Lambda | $0.00 USD |
-| DynamoDB | $0.00 USD |
-| CloudWatch Logs | $0.15 USD |
-| 合計 | $0.15 USD |
-
-#### 備考
-
-- Phase 2初期では、Serverless Backendはまだ実装しない
-- Backend AWS化は、S3 + CloudFrontによるFrontend配信後に別Issueで検討する
-- Lambdaは既存VPCに接続しない前提とする
-- SQLiteからDynamoDBへの保存方式変更は後続タスクで検討する
-- CloudWatch Logsは保持期間7日を初期候補とする
-
-### 14.4 見積もり結果からの判断
-
-AWS Pricing Calculatorの確認結果では、以下の概算となった。
+### 6.4 単純合算
 
 | 構成 | 月額概算 |
 |---|---:|
@@ -492,34 +109,269 @@ AWS Pricing Calculatorの確認結果では、以下の概算となった。
 | Serverless Backend比較用 | $0.15 USD |
 | 両方を採用した場合の単純合算 | $0.34 USD |
 
-この結果から、Phase 2初期は低コストで開始できる見込みがある。
+この結果から、Phase 2初期では、まず S3 + CloudFront によるFrontend静的配信を採用します。
+
+## 7. Issue #23 実施結果との対応
+
+Issue #23では、以下を実際に確認しました。
+
+- AWS CDK TypeScript構成を作成
+- S3 Bucketを作成
+- S3 BucketをPublic公開しない構成を確認
+- CloudFront Distributionを作成
+- CloudFront OACでS3へアクセスする構成を確認
+- Frontend静的ファイルをS3へ配置
+- CloudFront URLでFrontend画面表示を確認
+- 対象S3 Bucketの中身を手動削除
+- `pnpm cdk destroy` により本プロジェクト用リソース削除を確認
+
+検証後にリソースを削除しているため、継続的なS3 + CloudFront利用料は抑えられます。
+
+## 8. 低コスト観点で初期回避するサービス
+
+以下はPhase 2初期では原則として避けます。
+
+| サービス / 構成 | 回避理由 |
+|---|---|
+| NAT Gateway | 高コスト化しやすい |
+| ALB | 常時稼働コストが発生しやすい |
+| RDS | 継続課金、削除漏れリスクがある |
+| ECS Fargate | 初期構成としては重い |
+| EKS | 個人開発初期には過剰 |
+| WAF | 初期デモ用途では優先度が低い |
+| EC2常時起動 | 既存プライベートEC2との混同リスクがある |
+| Bedrock無制限利用 | 利用料の上振れリスクがある |
+
+## 9. コスト管理方針
+
+Phase 2では、以下を実施します。
+
+- AWS Pricing Calculatorで事前に概算する
+- AWS Budgetsで予算アラートを設定する
+- Free Tier対象サービスを優先する
+- 常時稼働リソースを避ける
+- 検証後に不要リソースを削除する
+- S3 Bucketの不要オブジェクトを削除する
+- CloudWatch Logsを使う場合は保持期間を短くする
+- BedrockやOpenAI APIの呼び出し回数を制限する
+- README/docsにデプロイ手順だけでなく削除手順も明記する
+
+## 10. CDK bootstrapの扱い
+
+`cdk bootstrap` により作成される `CDKToolkit` Stackは、CDK管理用リソースです。  
+アプリケーション本体の `AiTestDesignSupportFrontendStack` とは別に扱います。
+
+`CDKToolkit` には、CDK assets用S3 Bucket、IAM Role、SSM Parameterなどが含まれます。  
+これはアプリケーション本体のS3 + CloudFront構成とは別の前提リソースであり、削除対象や運用方針を混同しないようにします。
+
+## 11. 削除手順方針
+
+Issue #23では、以下の削除方針を採用しました。
+
+```text
+autoDeleteObjects: false
+cdk destroy 前に対象S3 Bucketの中身を手動削除
+```
+
+理由は以下です。
+
+- 初期構成を小さく保つため
+- `autoDeleteObjects: true` 由来のLambda / IAM / Custom Resourceを増やさないため
+- 削除対象を明示的に確認できるため
+- 既存AWS環境との誤削除を避けるため
+
+削除対象Bucket名は、CloudFormation Output `FrontendBucketName` から取得します。  
+手入力で別Bucketを指定しないよう注意します。
+
+## 12. 現時点の結論
+
+Phase 2初期では、S3 + CloudFront によるFrontend静的配信を採用し、構築・表示確認・削除確認まで完了しました。
+
+Backend AWS化、DynamoDB、CloudWatch Logs本格利用は後続Issueで検討します。
+
+AWS実務経験を過度に盛らず、以下のように説明します。
+
+```text
+AWS SAAで学習した内容をもとに、個人開発のローカルMVPを低コストなAWS構成へ段階的に展開しています。
+S3 + CloudFrontによる静的Frontend配信をCDKで構築し、料金見積もり、Budgets、削除手順、既存AWS環境との分離を含めて確認しました。
+Backend APIのAWS化は後続検討です。
+```
+
+## 13. 次アクション
+
+- READMEへS3 + CloudFront検証結果を反映する
+- `docs/aws-architecture.md` と整合しているか確認する
+- `docs/aws-deploy.md` と整合しているか確認する
+- `docs/aws-destroy.md` と整合しているか確認する
+- Issue #23 closeコメントを作成する
+## Backend Serverless構成の料金再確認観点
+
+Phase 2のBackend Serverless構成では、以下のサービスを候補とする。
+
+```text
+API Gateway HTTP API
+Lambda
+DynamoDB
+CloudWatch Logs
+```
+
+現時点の料金見積もりでは、Frontend配信とServerless Backend比較用を単純合算した場合、低頻度利用であれば月額は小さく収まる想定である。
+
+```text
+S3 + CloudFront：$0.19 USD / 月 程度
+Serverless Backend比較用：$0.15 USD / 月 程度
+単純合算：$0.34 USD / 月 程度
+```
 
 ただし、実際の料金は以下により変動する。
 
-- アクセス数
+- 利用リージョン
+- API Gatewayのリクエスト数
+- Lambdaの実行回数
+- Lambdaのメモリサイズ
+- Lambdaの実行時間
+- DynamoDBの読み書き回数
+- DynamoDBの保存容量
+- CloudWatch Logsのログ取り込み量
+- CloudWatch Logsの保存期間
 - データ転送量
-- CloudFrontリクエスト数
-- CloudWatch Logs出力量
-- AWS無料枠の適用状況
-- 既存AWS環境で発生している別用途の費用
+- Free Tierの適用状況
+- AWS Pricing Calculator上の前提条件
 
-そのため、AWSリソースを作成する前に、AWS Budgetsを設定し、既存プライベートサーバ費用と本プロジェクト追加費用を混同しないように管理する。
+そのため、Backend実装前にAWS Pricing Calculatorで再確認する。
 
-### 14.5 Phase 2初期の採用方針
+---
 
-Phase 2初期では、以下の構成を最初の実装対象とする。
+## API Gateway HTTP API
+
+Backend API公開には、API Gateway HTTP APIを優先する。
+
+確認観点は以下。
+
+| 項目 | 確認内容 |
+|---|---|
+| API種別 | HTTP API |
+| 想定リクエスト数 | 個人開発・ポートフォリオ確認用途の低頻度利用を前提 |
+| データ転送量 | 仕様本文・生成結果が大きくなりすぎない前提 |
+| CORS | CloudFront配信Frontendからの呼び出しを許可 |
+| REST APIとの差分 | REST APIの高度な機能は初期段階では使わない |
+
+初期段階では、APIキー、Usage Plan、WAF、Private APIは利用しない。
+
+---
+
+## Lambda
+
+Backend処理にはPython Lambdaを利用する。
+
+確認観点は以下。
+
+| 項目 | 初期方針 |
+|---|---|
+| ランタイム | Python |
+| メモリ | 小さめから開始し、必要に応じて調整 |
+| タイムアウト | LLM Mock相当なら短めに設定 |
+| 実行回数 | 個人開発・ポートフォリオ確認用途の低頻度利用を前提 |
+| VPC | 使用しない |
+| 環境変数 | 必要最小限 |
+| 秘密情報 | 初期段階では扱わない |
+| ログ | CloudWatch Logsへ出力。ただし本文・生成結果全文は出さない |
+
+将来OpenAI APIやAmazon Bedrockを利用する場合は、APIキー、Secrets管理、利用回数制限、失敗時制御、ログ方針を別途検討する。
+
+---
+
+## DynamoDB
+
+履歴保存にはDynamoDBを利用する。
+
+初期方針は以下。
+
+| 項目 | 方針 |
+|---|---|
+| 課金モード | オンデマンド |
+| テーブル用途 | 生成履歴保存 |
+| パーティションキー | `history_id` |
+| ソートキー | なし |
+| 検索 | 初期段階では実装しない |
+| TTL | 後続検討 |
+| バックアップ | 初期段階では作り込みすぎない |
+
+想定テーブル名は以下。
 
 ```text
-S3 + CloudFront による Frontend 静的配信
+ai-test-design-support-histories
 ```
 
-理由は以下のとおり。
+初期段階では、履歴検索、編集、削除、ページネーション、ユーザー別管理、マルチテナントは対象外とする。
 
-- 月額概算が低い
-- 既存VPC/EC2に触れずに構成できる
-- 同一AWSアカウント内でも分離しやすい
-- 削除対象を限定しやすい
-- READMEや面談で説明しやすい
-- Backend AWS化より前に、AWSデプロイと削除手順を小さく確認できる
+---
 
-Backend API、DynamoDB、CloudWatch Logsの本格利用は、Frontend配信後に別Issueで検討する。
+## CloudWatch Logs
+
+Lambda実行ログはCloudWatch Logsへ出力される。
+
+初期方針は以下。
+
+```text
+CloudWatch Logs保持期間：7日
+```
+
+ログ料金は、主に以下で増加する可能性がある。
+
+- ログ取り込み量
+- ログ保存期間
+- リクエスト本文や生成結果全文を出力してしまうこと
+- エラー時に大きなスタックトレースや入力本文を出してしまうこと
+
+そのため、以下はログに出力しない。
+
+- 仕様本文
+- 補足事項全文
+- Markdown全文
+- APIキー
+- AWS認証情報
+- AWSアカウントID
+- VPC ID
+- EC2 ID
+- IPアドレス
+- 将来のLLMプロンプト全文
+- 顧客情報
+- 個人情報
+- 業務機密
+
+ログに出してよい情報は以下に限定する。
+
+- request_id
+- endpoint
+- status_code
+- error_type
+- history_id
+- 処理時間
+
+---
+
+## 料金増加リスク
+
+Backend Serverless構成で注意する料金リスクは以下。
+
+| リスク | 内容 | 対策 |
+|---|---|---|
+| APIリクエスト増加 | 外部から大量アクセスされる | 初期は公開範囲・CORS・利用導線を限定する |
+| Lambda実行時間増加 | 処理が重くなる | タイムアウトを短めに設定し、不要処理を避ける |
+| DynamoDB保存量増加 | 仕様本文やMarkdownを大量保存する | 入力文字数制限、保存件数の運用方針を検討する |
+| CloudWatch Logs増加 | 本文や生成結果をログ出力する | ログ出力を最小化し、保持期間7日にする |
+| 削除漏れ | API Gateway / Lambda / DynamoDB / Logsが残る | `docs/aws-destroy.md` に削除確認手順を明記する |
+
+---
+
+## 再確認タイミング
+
+以下のタイミングで料金見積もりを再確認する。
+
+- Backend実装前
+- API Gateway / Lambda / DynamoDB をCDKで追加する前
+- CloudWatch Logs保持期間を設定する前
+- OpenAI API / Amazon Bedrock連携を検討する前
+- READMEやdocsに料金目安を追記する前
+- AWSリソースを削除せず継続利用する判断をしたとき
