@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import uuid
 
 from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -9,7 +10,12 @@ from app.db.database import Base
 class TestDesignHistory(Base):
     __tablename__ = "test_design_histories"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    history_id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     target_type: Mapped[str] = mapped_column(String(100), nullable=False)
     test_level: Mapped[str] = mapped_column(String(100), nullable=False)

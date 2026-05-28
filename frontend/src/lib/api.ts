@@ -23,7 +23,7 @@ export type TestCase = {
 };
 
 export type TestDesignResponse = {
-  id?: number;
+  history_id: string;
   title: string;
   target_type: TargetType;
   test_level: TestLevel;
@@ -33,7 +33,7 @@ export type TestDesignResponse = {
 };
 
 export type TestDesignHistory = {
-  id: number;
+  history_id: string;
   title: string;
   target_type: TargetType;
   test_level: TestLevel;
@@ -60,7 +60,7 @@ export type TestDesignTestCase = {
 };
 
 export type TestDesignHistoryDetail = {
-  id: number;
+  history_id: string;
   title: string;
   target_type: string;
   test_level: string;
@@ -195,7 +195,7 @@ export async function generateTestDesign(
 }
 
 export async function fetchTestDesignHistoryDetail(
-  historyId: number,
+  historyId: string,
 ): Promise<TestDesignHistoryDetail> {
   const response = await fetch(
     `${API_BASE_URL}/test-designs/histories/${historyId}`,

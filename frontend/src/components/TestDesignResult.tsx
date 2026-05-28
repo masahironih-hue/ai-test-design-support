@@ -64,9 +64,9 @@ export default function TestDesignResult({ result }: TestDesignResultProps) {
           <strong>テストレベル:</strong>{" "}
           {testLevelLabels[result.test_level] ?? result.test_level}
         </p>
-        {result.id !== undefined && (
+        {result.history_id !== undefined && (
           <p>
-            <strong>履歴ID:</strong> {result.id}
+            <strong>履歴ID:</strong> {result.history_id}
           </p>
         )}
       </div>

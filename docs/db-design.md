@@ -91,7 +91,7 @@ MVPで作成するテーブルは以下の1つです。
 
 | カラム名 | 型 | 必須 | 主キー | 内容 |
 |---|---|---:|---:|---|
-| `id` | integer | 必須 | 〇 | 履歴ID |
+| `id` | text | 必須 | 〇 | 履歴ID |
 | `title` | varchar | 必須 |  | テスト設計タイトル |
 | `target_type` | varchar | 必須 |  | テスト対象種別 |
 | `test_level` | varchar | 必須 |  | テストレベル |

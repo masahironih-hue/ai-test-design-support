@@ -43,7 +43,7 @@ def get_histories(
 
 @router.get("/histories/{history_id}", response_model=TestDesignHistoryDetail)
 def get_history(
-    history_id: int,
+    history_id: str,
     db: Session = Depends(get_db),
 ) -> TestDesignHistoryDetail:
     history = get_test_design_history(db=db, history_id=history_id)

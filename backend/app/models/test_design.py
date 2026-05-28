@@ -63,7 +63,7 @@ class TestDesignGenerateResponse(BaseModel):
 
 
 class TestDesignHistorySummary(BaseModel):
-    id: int
+    history_id: str
     title: str
     target_type: str
     test_level: str
@@ -71,7 +71,7 @@ class TestDesignHistorySummary(BaseModel):
 
 
 class TestDesignHistoryDetail(BaseModel):
-    id: int
+    history_id: str
     title: str
     target_type: str
     test_level: str

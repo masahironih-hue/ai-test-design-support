@@ -9,7 +9,7 @@ import {
 } from "@/lib/api";
 
 export function HistorySection() {
-  const [selectedHistoryId, setSelectedHistoryId] = useState<number | null>(
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(
     null,
   );
   const [history, setHistory] = useState<TestDesignHistoryDetail | null>(null);
@@ -19,7 +19,7 @@ export function HistorySection() {
 
   const latestRequestIdRef = useRef(0);
 
-  async function handleSelectHistory(historyId: number) {
+  async function handleSelectHistory(historyId: string) {
     const requestId = latestRequestIdRef.current + 1;
     latestRequestIdRef.current = requestId;
 

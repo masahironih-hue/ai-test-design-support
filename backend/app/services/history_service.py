@@ -54,13 +54,13 @@ def save_test_design_history(
 def list_test_design_histories(db: Session) -> list[TestDesignHistorySummary]:
     histories = (
         db.query(TestDesignHistory)
-        .order_by(desc(TestDesignHistory.created_at), desc(TestDesignHistory.id))
+        .order_by(desc(TestDesignHistory.created_at), desc(TestDesignHistory.history_id))
         .all()
     )
 
     return [
         TestDesignHistorySummary(
-            id=history.id,
+            history_id=history.history_id,
             title=history.title,
             target_type=history.target_type,
             test_level=history.test_level,
@@ -72,7 +72,7 @@ def list_test_design_histories(db: Session) -> list[TestDesignHistorySummary]:
 
 def get_test_design_history(
     db: Session,
-    history_id: int,
+    history_id: str,
 ) -> TestDesignHistoryDetail | None:
     history = db.get(TestDesignHistory, history_id)
 
@@ -80,7 +80,7 @@ def get_test_design_history(
         return None
 
     return TestDesignHistoryDetail(
-        id=history.id,
+        history_id=history.history_id,
         title=history.title,
         target_type=history.target_type,
         test_level=history.test_level,

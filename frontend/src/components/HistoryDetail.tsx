@@ -2,7 +2,7 @@ import type { TestDesignHistoryDetail } from "@/lib/api";
 import { formatDateTimeJst } from "@/lib/date";
 
 type HistoryDetailProps = {
-  selectedHistoryId: number | null;
+  selectedHistoryId: string | null;
   history: TestDesignHistoryDetail | null;
   isLoading: boolean;
   errorMessage: string | null;
@@ -91,7 +91,7 @@ export function HistoryDetail({
   return (
     <section className="rounded-lg border p-4">
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-gray-500">履歴ID: #{history.id}</p>
+        <p className="text-sm text-gray-500">履歴ID: #{history.history_id}</p>
         <h2 className="text-2xl font-bold">{history.title}</h2>
 
         <div className="grid gap-1 text-sm text-gray-700">

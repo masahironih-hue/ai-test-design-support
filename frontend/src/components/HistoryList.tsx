@@ -11,8 +11,8 @@ import {
 } from "@/lib/api";
 
 type HistoryListProps = {
-  selectedHistoryId?: number | null;
-  onSelectHistory?: (historyId: number) => void | Promise<void>;
+  selectedHistoryId?: string | null;
+  onSelectHistory?: (historyId: string) => void | Promise<void>;
 };
 
 const targetTypeLabels: Record<TargetType, string> = {
@@ -143,9 +143,9 @@ export function HistoryList({
       {!isLoading && !errorMessage && histories.length > 0 && (
         <div className="history-list">
           {histories.map((history) => (
-            <article className="history-card" key={history.id}>
+            <article className="history-card" key={history.history_id}>
               <h3>
-                #{history.id} {history.title}
+                # {history.title}
               </h3>
 
               <dl>
@@ -173,11 +173,11 @@ export function HistoryList({
               <button
                 type="button"
                 onClick={() => {
-                  void onSelectHistory?.(history.id);
+                  void onSelectHistory?.(history.history_id);
                 }}
                 className="rounded bg-gray-900 px-3 py-2 text-sm font-semibold text-white"
               >
-                {selectedHistoryId === history.id ? "選択中" : "詳細を表示"}
+                {selectedHistoryId === history.history_id ? "選択中" : "詳細を表示"}
               </button>
             </article>
           ))}

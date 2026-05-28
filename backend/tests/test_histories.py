@@ -22,7 +22,7 @@ def test_generate_saves_history(client):
     assert histories[0]["title"] == payload["title"]
     assert histories[0]["target_type"] == payload["target_type"]
     assert histories[0]["test_level"] == payload["test_level"]
-    assert "id" in histories[0]
+    assert "history_id" in histories[0]
     assert "created_at" in histories[0]
 
 
@@ -32,14 +32,14 @@ def test_get_history_detail(client):
     client.post("/test-designs/generate", json=payload)
 
     histories = client.get("/test-designs/histories").json()
-    history_id = histories[0]["id"]
+    history_id = histories[0]["history_id"]
 
     detail_response = client.get(f"/test-designs/histories/{history_id}")
 
     assert detail_response.status_code == 200
 
     detail = detail_response.json()
-    assert detail["id"] == history_id
+    assert detail["history_id"] == history_id
     assert detail["title"] == payload["title"]
     assert detail["target_type"] == payload["target_type"]
     assert detail["test_level"] == payload["test_level"]
