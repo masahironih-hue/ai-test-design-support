@@ -289,6 +289,7 @@ READMEには、API Gateway URL、CloudFront DomainName、S3 Bucket名、DynamoDB
 - [AWS削除手順](docs/aws-destroy.md)
 - [AWS低コスト構成・料金見積もり](docs/aws-cost-estimate.md)
 - [AWS Budgets・コスト制御](docs/aws-budget.md)
+- [ローカルMVPとAWS低コスト版の差分](docs/aws-version-differences.md)
 
 ---
 
@@ -402,40 +403,6 @@ cd frontend
 pnpm lint
 pnpm build
 ```
-
----
-
-## SQLite履歴保存仕様
-
-ローカルMVPでは、生成結果をSQLiteに保存します。
-
-主な仕様は以下です。
-
-- 生成結果はSQLiteに保存される
-- Backend再起動後も履歴は保持される
-- `init_db()` はテーブル作成用であり、既存履歴は削除しない
-- 開発中に履歴を初期化したい場合は、Backend停止後に開発用SQLite DBファイルを手動削除する
-- SQLite DBファイルはGit管理対象外とする
-
-AWS低コスト版では、履歴保存にDynamoDBを使用します。
-
----
-
-## 日時表示仕様
-
-日時は以下の方針で扱います。
-
-- Backend / DB ではUTC基準で扱う
-- Frontend表示時にJSTへ変換する
-
-例：
-
-```text
-UTC: 2026/05/22 07:35
-JST: 2026/05/22 16:35
-```
-
----
 
 ## セキュリティ・守秘義務上の注意
 
@@ -559,3 +526,4 @@ JST: 2026/05/22 16:35
 - [AWSデプロイ手順](docs/aws-deploy.md)
 - [AWS削除手順](docs/aws-destroy.md)
 - [AWS Budgets・コスト制御](docs/aws-budget.md)
+- [ローカルMVPとAWS低コスト版の差分](docs/aws-version-differences.md)
