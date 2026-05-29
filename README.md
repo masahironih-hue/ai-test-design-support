@@ -536,8 +536,7 @@ JST: 2026/05/22 16:35
 |---|---|
 | `v0.1.0-local-mvp` | ローカルMVP。仕様入力、LLM Mock生成、SQLite履歴保存、履歴一覧・詳細まで確認 |
 | `v0.2.0-aws-frontend-hosting` | S3 + CloudFrontによるFrontend静的配信 |
-
-Phase 2全体を示すReleaseは、README最終整備後に作成候補として扱います。
+| `v0.3.0-aws-low-cost-version` | S3 + CloudFront、API Gateway HTTP API、Python Lambda、DynamoDBを使ったAWS低コスト版 |
 
 ---
 
