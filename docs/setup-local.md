@@ -251,4 +251,15 @@ AWSはローカルMVP完成後に検討する。
 
 `.env` はGit管理対象外とし、`.env.example` のみ管理する。
 
+Backendの生成方式は `APP_LLM_PROVIDER` で切り替える。
+
+- 未指定時または `APP_LLM_PROVIDER=mock` はMock生成を使う
+- `APP_LLM_PROVIDER=openai` の場合のみOpenAI APIを呼び出す
+- OpenAI API利用時は `OPENAI_API_KEY` が必要
+- `OPENAI_MODEL` は `gpt-5.4-nano` / `gpt-5.4-mini` のallowlist内で指定する
+- `OPENAI_MAX_OUTPUT_TOKENS` と `OPENAI_TIMEOUT_SECONDS` を環境変数で設定できる
+- OpenAI API利用時は利用料が発生する可能性がある
+- モデル変更時はOpenAI公式の料金・品質・速度・利用制限を確認する
+- CIではOpenAI APIを呼び出さない
+
 詳細は `docs/security-policy.md` を参照する。

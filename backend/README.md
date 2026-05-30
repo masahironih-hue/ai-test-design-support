@@ -79,13 +79,29 @@ python -m pytest
 
 ### 概要
 
-`POST /test-designs/generate` に仕様情報を送信すると、LLM Mock によってテスト観点・テストケース・Markdown形式の生成結果を返却します。
+`POST /test-designs/generate` に仕様情報を送信すると、LLM Provider によってテスト観点・テストケース・Markdown形式の生成結果を返却します。
 
-現時点では外部LLM APIは呼び出しません。
+デフォルトは `APP_LLM_PROVIDER=mock` で、外部LLM APIは呼び出しません。
+任意機能として `APP_LLM_PROVIDER=openai` を指定した場合のみ OpenAI API を呼び出します。
 
-- OpenAI API: 未使用
-- Amazon Bedrock: 未使用
-- 外部LLM APIキー: 不要
+- Mock生成: デフォルト
+- OpenAI API連携: 任意機能
+- Amazon Bedrock連携: 未実装
+- CI / pytest: OpenAI APIを実呼び出ししない
+
+OpenAI APIを利用する場合は、環境変数に以下を設定します。
+
+```env
+APP_LLM_PROVIDER=openai
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-5.4-nano
+OPENAI_MAX_OUTPUT_TOKENS=1200
+OPENAI_TIMEOUT_SECONDS=30
+```
+
+`OPENAI_MODEL` は `gpt-5.4-nano` / `gpt-5.4-mini` のallowlist内で切り替えます。
+モデル変更時は、OpenAI公式のモデル・料金・品質・速度・利用制限を確認してください。
+OpenAI API利用時は利用料が発生する可能性があります。
 
 ---
 
@@ -143,7 +159,8 @@ Invoke-RestMethod `
 
 ### 注意事項
 
-このAPIは外部LLMを呼び出さないMock実装です。
+デフォルトのMock生成では外部LLMを呼び出しません。
+`APP_LLM_PROVIDER=openai` の場合、入力内容はOpenAI APIへ送信されます。
 
 以下の情報は入力しないでください。
 
@@ -153,6 +170,7 @@ Invoke-RestMethod `
 ```
 
 動作確認には、架空のサンプル仕様のみを使用します。
+`.env` / `.env.local` に記載した実値はGitHubへコミットしないでください。
 
 ---
 
@@ -337,7 +355,7 @@ git ls-files | Select-String -Pattern "\.db$|\.sqlite$|\.sqlite3$|(^|/)\.env$|(^
 
 現時点のローカルMVPでは、以下は扱いません。
 
-- OpenAI API連携
+- OpenAI API連携の本格運用
 - Amazon Bedrock連携
 - AWSデプロイ
 - 認証

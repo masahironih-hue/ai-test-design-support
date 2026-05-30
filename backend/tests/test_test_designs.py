@@ -1,12 +1,4 @@
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-
-client = TestClient(app)
-
-
-def test_generate_test_design_success() -> None:
+def test_generate_test_design_success(client) -> None:
     payload = {
         "title": "ログイン画面",
         "target_type": "screen",
@@ -42,7 +34,7 @@ def test_generate_test_design_success() -> None:
     assert "TC-001" in data["markdown"]
 
 
-def test_generate_test_design_invalid_target_type() -> None:
+def test_generate_test_design_invalid_target_type(client) -> None:
     payload = {
         "title": "ログイン画面",
         "target_type": "invalid",
@@ -55,7 +47,7 @@ def test_generate_test_design_invalid_target_type() -> None:
     assert response.status_code == 422
 
 
-def test_generate_test_design_invalid_test_level() -> None:
+def test_generate_test_design_invalid_test_level(client) -> None:
     payload = {
         "title": "ログイン画面",
         "target_type": "screen",
@@ -68,7 +60,7 @@ def test_generate_test_design_invalid_test_level() -> None:
     assert response.status_code == 422
 
 
-def test_generate_test_design_title_required() -> None:
+def test_generate_test_design_title_required(client) -> None:
     payload = {
         "title": "",
         "target_type": "screen",
@@ -79,6 +71,7 @@ def test_generate_test_design_title_required() -> None:
     response = client.post("/test-designs/generate", json=payload)
 
     assert response.status_code == 422
+
 
 def test_generate_test_design(client):
     payload = {

@@ -5,6 +5,7 @@ description = "Backend API for AI test design support tool"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi",
+    "openai",
     "uvicorn[standard]",
     "sqlalchemy",
 ]
@@ -18,6 +19,8 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+cache_dir = ".pytest_cache_local"
+addopts = ["--basetemp=.pytest_tmp"]
 
 [build-system]
 requires = ["setuptools>=64", "wheel"]

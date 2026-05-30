@@ -13,7 +13,8 @@ from app.services.history_service import (
     list_test_design_histories,
     save_test_design_history,
 )
-from app.services.llm_mock import generate_test_design_mock as generate_test_design_by_mock
+from app.services.llm_errors import LLMProviderError
+from app.services.llm_provider import generate_test_design as generate_test_design_by_provider
 
 router = APIRouter(prefix="/test-designs", tags=["test-designs"])
 
@@ -23,7 +24,10 @@ def generate_test_design(
     request: TestDesignGenerateRequest,
     db: Session = Depends(get_db),
 ) -> TestDesignGenerateResponse:
-    response = generate_test_design_by_mock(request)
+    try:
+        response = generate_test_design_by_provider(request)
+    except LLMProviderError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.public_message) from exc
 
     save_test_design_history(
         db=db,

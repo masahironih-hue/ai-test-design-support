@@ -4,7 +4,9 @@
 
 本ドキュメントは、「業務系SE向け AIテスト設計支援ツール」の Phase 1：ローカルMVP における LLM Mock の設計を整理するものです。
 
-Phase 1では、OpenAI APIやAmazon Bedrockなどの外部LLM APIは使用せず、Backend内のMockサービスでテスト観点・テストケース案・追加確認事項を生成します。
+Phase 1では、デフォルトでBackend内のMockサービスを使ってテスト観点・テストケース案・追加確認事項を生成します。
+任意機能として `APP_LLM_PROVIDER=openai` を指定した場合のみOpenAI APIを呼び出します。
+Amazon Bedrock連携は未実装です。
 
 MVPにおけるLLM Mockの目的は、生成AIそのものの精度を追求することではなく、以下の流れを安定して動作確認できるようにすることです。
 
@@ -657,19 +659,23 @@ LLM Mockは外部APIを呼び出さないため、入力内容が外部サービ
 
 ---
 
-## 21. 将来のOpenAI API / Bedrock連携に向けた考慮
+## 21. OpenAI API / Bedrock連携に向けた考慮
 
-将来、LLM MockをOpenAI APIやAmazon Bedrockに差し替える場合に備えて、以下を意識します。
+Backendでは、既存LLM Mockを残したまま `APP_LLM_PROVIDER=mock/openai` による切替を行います。
+未指定時は `mock` を使い、`APP_LLM_PROVIDER=openai` の場合だけOpenAI APIを呼び出します。
+Amazon Bedrock連携は未実装です。
 
 | 観点 | 方針 |
 |---|---|
 | 入力形式 | Mockと外部LLMで同じ入力情報を使えるようにする |
 | 出力形式 | 外部LLM利用時も同じJSON構造に整形する |
-| Provider切替 | `llm_provider` で `mock` / `openai` / `bedrock` を区別できるようにする |
-| Model保存 | `llm_model` に使用モデル名を保存できるようにする |
+| Provider切替 | `APP_LLM_PROVIDER` で `mock` / `openai` を区別する |
+| Model制御 | `OPENAI_MODEL` を `gpt-5.4-nano` / `gpt-5.4-mini` のallowlist内で指定する |
+| 出力制御 | `OPENAI_MAX_OUTPUT_TOKENS` と `OPENAI_TIMEOUT_SECONDS` を環境変数で指定する |
 | Markdown変換 | LLMにMarkdownを直接出させず、JSONからBackend側で変換する方針を維持する |
-| コスト管理 | 外部LLM利用時は回数制限や利用ログを検討する |
-| セキュリティ | 外部送信前に注意書きとマスキング方針を明確にする |
+| コスト管理 | OpenAI API利用時は料金・品質・速度・利用制限を確認する |
+| セキュリティ | 実案件情報、顧客情報、個人情報、業務機密を入力しない |
+| CI | pytestではOpenAI APIを実呼び出ししない |
 
 ---
 
