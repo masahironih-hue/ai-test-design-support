@@ -1,5 +1,7 @@
 # 業務系SE向け AIテスト設計支援ツール
 
+[![CI](https://github.com/masahironih-hue/ai-test-design-support/actions/workflows/ci.yml/badge.svg)](https://github.com/masahironih-hue/ai-test-design-support/actions/workflows/ci.yml)
+
 ## 概要
 
 「業務系SE向け AIテスト設計支援ツール」は、機能概要や仕様メモを入力すると、テスト観点・テストケース・確認事項を生成するWebアプリケーションです。
@@ -175,6 +177,7 @@ Phase 1：ローカルMVPで実装した主要画面です。
 
 - Git / GitHub
 - GitHub Issues
+- GitHub Actions
 - README / docs
 
 ### Future Candidates
@@ -389,6 +392,8 @@ AWS版のデプロイ・確認手順は、[AWSデプロイ手順](docs/aws-deplo
 
 ## テスト・確認コマンド
 
+ローカル環境では、以下のコマンドでCI相当の確認を行えます。
+
 ### Backend
 
 ```powershell
@@ -403,6 +408,35 @@ cd frontend
 pnpm lint
 pnpm build
 ```
+
+### Infra
+
+```powershell
+cd infra
+pnpm cdk synth
+```
+
+`pnpm cdk synth` はCDKテンプレートの合成確認のみを行います。AWSリソースの作成・更新・削除は行いません。
+
+## CI
+
+本リポジトリでは、GitHub Actions により以下を自動確認しています。
+
+```text
+Backend pytest
+Frontend lint
+Frontend build
+Infra cdk synth
+```
+
+CIは品質確認を目的としたものであり、AWS deploy は自動化していません。
+
+GitHub Actionsでは、AWS認証情報、GitHub Secrets、OIDC連携を使用せず、`cdk deploy`、`cdk destroy`、AWSリソースの作成・更新・削除は実行しません。
+
+AWSリソースの作成・削除は、ローカル環境から手動で確認する前提です。手順は以下を参照してください。
+
+- [AWSデプロイ手順](docs/aws-deploy.md)
+- [AWS削除手順](docs/aws-destroy.md)
 
 ## セキュリティ・守秘義務上の注意
 
